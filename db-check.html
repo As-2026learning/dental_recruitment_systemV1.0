@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据库连接检查</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .result {
+      margin: 20px 0;
+      padding: 15px;
+      border-radius: 8px;
+      background: #f8f9ff;
+      border-left: 4px solid #667eea;
+    }
+    .success {
+      background: #e8f5e9;
+      border-left-color: #4caf50;
+    }
+    .error {
+      background: #ffebee;
+      border-left-color: #f44336;
+    }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>数据库连接检查</h1>
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+    </div>
+    <div id="results" style="display: none;"></div>
+  </div>
+
+  <script>
+    var SUPABASE_URL = 'https://ztybxgnelynmsgkeqosz.supabase.co';
+    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0eWJ4Z25lbHlubXNna2Vxb3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjc1NjAsImV4cCI6MjA4OTg0MzU2MH0.ISKHxvS_1hR5SkluCQ69O6UQNDHMOisPacaRlm0d33M';
+
+    function loadSDK() {
+      var cdnList = [
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
+        'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js'
+      ];
+      var index = 0;
+
+      function tryLoad() {
+        if (index >= cdnList.length) {
+          document.getElementById('loading').innerHTML = '<p style="color:#f44336;">加载Supabase SDK失败</p>';
+          return;
+        }
+        var script = document.createElement('script');
+        script.src = cdnList[index];
+        script.onload = function() { initApp(); };
+        script.onerror = function() { index++; tryLoad(); };
+        document.head.appendChild(script);
+      }
+      tryLoad();
+    }
+
+    async function initApp() {
+      var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      var resultsDiv = document.getElementById('results');
+      var loadingDiv = document.getElementById('loading');
+
+      try {
+        // 测试连接
+        var { data, error } = await db.from('positions').select('*').limit(1);
+        if (error) throw error;
+
+        resultsDiv.innerHTML += '<div class="result success">✅ 数据库连接成功</div>';
+
+        // 检查positions表
+        var { data: positions, error: posError } = await db.from('positions').select('*');
+        if (posError) {
+          resultsDiv.innerHTML += '<div class="result error">❌ positions表不存在或无法访问</div>';
+        } else {
+          resultsDiv.innerHTML += `<div class="result success">✅ positions表存在，有 ${positions.length} 条数据</div>`;
+        }
+
+        // 检查time_slots表
+        var { data: timeSlots, error: slotError } = await db.from('time_slots').select('*');
+        if (slotError) {
+          resultsDiv.innerHTML += '<div class="result error">❌ time_slots表不存在或无法访问</div>';
+        } else {
+          resultsDiv.innerHTML += `<div class="result success">✅ time_slots表存在，有 ${timeSlots.length} 条数据</div>`;
+        }
+
+        // 检查system_config表
+        var { data: config, error: configError } = await db.from('system_config').select('*');
+        if (configError) {
+          resultsDiv.innerHTML += '<div class="result error">❌ system_config表不存在或无法访问</div>';
+        } else {
+          resultsDiv.innerHTML += `<div class="result success">✅ system_config表存在，有 ${config.length} 条数据</div>`;
+        }
+
+        // 检查bookings表
+        var { data: bookings, error: bookError } = await db.from('bookings').select('*');
+        if (bookError) {
+          resultsDiv.innerHTML += '<div class="result error">❌ bookings表不存在或无法访问</div>';
+        } else {
+          resultsDiv.innerHTML += `<div class="result success">✅ bookings表存在，有 ${bookings.length} 条数据</div>`;
+        }
+
+        resultsDiv.innerHTML += '<div class="result">📝 检查完成！</div>';
+
+      } catch (e) {
+        resultsDiv.innerHTML += `<div class="result error">❌ 连接失败: ${e.message}</div>`;
+      } finally {
+        loadingDiv.style.display = 'none';
+        resultsDiv.style.display = 'block';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSDK);
+  </script>
+</body>
+</html>

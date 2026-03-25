@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>应聘信息管理 - 招聘</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 { font-size: 28px; margin-bottom: 10px; }
+    .header p { font-size: 16px; opacity: 0.9; margin-bottom: 15px; }
+    .nav-links {
+      margin-top: 15px;
+    }
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin: 0 15px;
+      opacity: 0.9;
+    }
+    .nav-links a:hover { opacity: 1; text-decoration: underline; }
+    .main-content { padding: 30px; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      border: 1px solid #eee;
+    }
+    .stat-card .stat-value { font-size: 32px; font-weight: 700; color: #667eea; margin-bottom: 5px; }
+    .stat-card .stat-label { color: #666; font-size: 14px; }
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .admin-filters {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .admin-filters select, .admin-filters input {
+      padding: 10px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .data-table th, .data-table td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .data-table th {
+      background: #f8f9ff;
+      font-weight: 600;
+      color: #333;
+      font-size: 14px;
+    }
+    .data-table tr:hover { background: #f8f9ff; }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-pending { background: #fff3e0; color: #e65100; }
+    .status-processed { background: #e8f5e9; color: #2e7d32; }
+    .status-rejected { background: #ffebee; color: #c62828; }
+    .action-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 5px;
+      transition: all 0.3s;
+    }
+    .action-btn-view { background: #2196f3; color: white; }
+    .action-btn-view:hover { background: #1976d2; }
+    .action-btn-process { background: #4caf50; color: white; }
+    .action-btn-process:hover { background: #388e3c; }
+    .action-btn-reject { background: #f44336; color: white; }
+    .action-btn-reject:hover { background: #d32f2f; }
+    .alert {
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .alert-error { background: #ffebee; color: #c62828; border-left: 4px solid #c62828; }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+    .empty-state p { font-size: 16px; }
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 9999;
+    }
+    #loading.hidden { display: none; }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    @media (max-width: 768px) {
+      .admin-filters { flex-direction: column; }
+      .data-table { font-size: 12px; }
+      .data-table th, .data-table td { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p style="margin-top:20px;color:#666;">正在加载管理系统...</p>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1>应聘信息管理</h1>
+      <p>招聘管理系统</p>
+      <div class="nav-links">
+        <a href="booking.html">← 返回预约页面</a>
+        <a href="admin-standalone.html">预约管理 →</a>
+        <a href="settings.html">系统设置 →</a>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalApplications">-</div>
+          <div class="stat-label">总应聘数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="pendingApplications">-</div>
+          <div class="stat-label">待处理</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="processedApplications">-</div>
+          <div class="stat-label">已处理</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="todayApplications">-</div>
+          <div class="stat-label">今日应聘</div>
+        </div>
+      </div>
+
+      <div class="admin-filters">
+        <select id="filterPosition" onchange="loadApplications()">
+          <option value="">全部岗位</option>
+        </select>
+        <select id="filterStatus" onchange="loadApplications()">
+          <option value="">全部状态</option>
+          <option value="pending">待处理</option>
+          <option value="processed">已处理</option>
+          <option value="rejected">已拒绝</option>
+        </select>
+        <input type="text" id="filterSearch" placeholder="搜索姓名/电话" onkeyup="loadApplications()" style="width: 200px;">
+        <button class="btn" onclick="exportToExcel()">导出Excel</button>
+      </div>
+
+      <div id="dataContainer">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 查看详情模态框 -->
+  <div id="detailModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 16px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>应聘详情</h3>
+        <button onclick="document.getElementById('detailModal').style.display = 'none'" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+      </div>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <script>
+    var SUPABASE_URL = 'https://ztybxgnelynmsgkeqosz.supabase.co';
+    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0eWJ4Z25lbHlubXNna2Vxb3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjc1NjAsImV4cCI6MjA4OTg0MzU2MH0.ISKHxvS_1hR5SkluCQ69O6UQNDHMOisPacaRlm0d33M';
+
+    var db = null;
+    var allApplications = [];
+    var positions = [];
+
+    function formatDate(d) {
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function loadSDK() {
+      var cdnList = [
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
+        'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js'
+      ];
+      var index = 0;
+
+      function tryLoad() {
+        if (index >= cdnList.length) {
+          document.getElementById('dataContainer').innerHTML = '<div class="alert alert-error">系统加载失败，请检查网络后刷新页面</div>';
+          document.getElementById('loading').classList.add('hidden');
+          return;
+        }
+        var script = document.createElement('script');
+        script.src = cdnList[index];
+        script.onload = function() { initApp(); };
+        script.onerror = function() { index++; tryLoad(); };
+        document.head.appendChild(script);
+      }
+      tryLoad();
+    }
+
+    async function initApp() {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      await loadPositions();
+      loadApplications();
+      loadStats();
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    async function loadPositions() {
+      try {
+        var result = await db.from('positions').select('*').eq('is_active', true).order('sort_order');
+        if (result.data && result.data.length > 0) {
+          positions = result.data;
+        }
+
+        // 填充岗位筛选下拉框
+        var positionSelect = document.getElementById('filterPosition');
+        for (var i = 0; i < positions.length; i++) {
+          var option = document.createElement('option');
+          option.value = positions[i].name;
+          option.textContent = positions[i].name;
+          positionSelect.appendChild(option);
+        }
+      } catch (e) {
+        console.error('加载岗位失败:', e);
+      }
+    }
+
+    async function loadStats() {
+      try {
+        var today = formatDate(new Date());
+        var result = await db.from('applications').select('status, created_at');
+        if (result.error) throw result.error;
+
+        var data = result.data;
+        var total = data.length;
+        var pending = 0, processed = 0, todayCount = 0;
+        
+        for (var i = 0; i < data.length; i++) {
+          if (data[i].status === 'pending') pending++;
+          if (data[i].status === 'processed') processed++;
+          if (new Date(data[i].created_at).toISOString().split('T')[0] === today) todayCount++;
+        }
+
+        document.getElementById('totalApplications').textContent = total;
+        document.getElementById('pendingApplications').textContent = pending;
+        document.getElementById('processedApplications').textContent = processed;
+        document.getElementById('todayApplications').textContent = todayCount;
+      } catch (e) {
+        console.error('加载统计失败:', e);
+      }
+    }
+
+    async function loadApplications() {
+      var container = document.getElementById('dataContainer');
+      container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      try {
+        var query = db.from('applications').select('*');
+        var positionFilter = document.getElementById('filterPosition').value;
+        var statusFilter = document.getElementById('filterStatus').value;
+
+        if (positionFilter) query = query.eq('position', positionFilter);
+        if (statusFilter) query = query.eq('status', statusFilter);
+
+        var result = await query.order('created_at', { ascending: false });
+        if (result.error) throw result.error;
+
+        var searchTerm = document.getElementById('filterSearch').value.toLowerCase();
+        var filteredData = result.data;
+        if (searchTerm) {
+          filteredData = [];
+          for (var i = 0; i < result.data.length; i++) {
+            var app = result.data[i];
+            if (app.name.toLowerCase().indexOf(searchTerm) !== -1 ||
+                app.phone.indexOf(searchTerm) !== -1) {
+              filteredData.push(app);
+            }
+          }
+        }
+
+        allApplications = filteredData;
+        renderApplications(filteredData);
+
+      } catch (e) {
+        container.innerHTML = '<div class="alert alert-error">加载数据失败: ' + e.message + '</div>';
+      }
+    }
+
+    function renderApplications(applications) {
+      var container = document.getElementById('dataContainer');
+
+      if (applications.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>暂无应聘数据</p></div>';
+        return;
+      }
+
+      var html = '<table class="data-table"><thead><tr>';
+      html += '<th>编号</th><th>姓名</th><th>电话</th><th>岗位</th><th>学历</th><th>工作经验</th><th>状态</th><th>申请时间</th><th>操作</th>';
+      html += '</tr></thead><tbody>';
+
+      var statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
+
+      for (var i = 0; i < applications.length; i++) {
+        var app = applications[i];
+        var statusLabel = statusMap[app.status] || app.status;
+
+        html += '<tr>';
+        html += '<td>' + app.id + '</td>';
+        html += '<td>' + app.name + '</td>';
+        html += '<td>' + app.phone + '</td>';
+        html += '<td>' + app.position + '</td>';
+        html += '<td>' + app.education + '</td>';
+        html += '<td>' + app.experience + '</td>';
+        html += '<td><span class="status status-' + app.status + '">' + statusLabel + '</span></td>';
+        html += '<td>' + new Date(app.created_at).toLocaleString('zh-CN') + '</td>';
+        html += '<td>';
+        html += '<button class="action-btn action-btn-view" onclick="viewApplication(' + app.id + ')">查看</button>';
+        if (app.status === 'pending') {
+          html += '<button class="action-btn action-btn-process" onclick="updateStatus(' + app.id + ', \'processed\')">处理</button>';
+          html += '<button class="action-btn action-btn-reject" onclick="updateStatus(' + app.id + ', \'rejected\')">拒绝</button>';
+        }
+        html += '</td></tr>';
+      }
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    async function viewApplication(id) {
+      try {
+        var result = await db.from('applications').select('*').eq('id', id).single();
+        if (result.error) throw result.error;
+        if (!result.data) return;
+
+        var app = result.data;
+        var statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
+        var statusLabel = statusMap[app.status] || app.status;
+        var jobTypeMap = { 'apprentice': '学徒/普工', 'technician': '牙科技工/质检员' };
+        var jobTypeLabel = jobTypeMap[app.job_type] || app.job_type || '未指定';
+
+        var html = '';
+        html += '<div style="line-height: 1.6; margin-bottom: 20px;">';
+        html += '<p><strong>姓名：</strong>' + app.name + '</p>';
+        html += '<p><strong>性别：</strong>' + app.gender + '</p>';
+        html += '<p><strong>电话：</strong>' + app.phone + '</p>';
+        html += '<p><strong>年龄：</strong>' + app.age + '岁</p>';
+        html += '<p><strong>岗位类型：</strong>' + jobTypeLabel + '</p>';
+        html += '<p><strong>应聘岗位：</strong>' + app.position + '</p>';
+        html += '<p><strong>学历：</strong>' + app.education + '</p>';
+        html += '<p><strong>工作经验：</strong>' + app.experience + '</p>';
+
+        // 显示模板特定字段
+        if (app.job_type === 'apprentice') {
+          html += '<p><strong>教育背景：</strong>' + (app.education_background || '无') + '</p>';
+          html += '<p><strong>工作意愿：</strong>' + (app.work_willingness || '无') + '</p>';
+          html += '<p><strong>期望薪资：</strong>' + (app.expectation || '无') + '</p>';
+          html += '<p><strong>到岗时间：</strong>' + (app.availability || '无') + '</p>';
+          html += '<p><strong>兴趣爱好：</strong>' + (app.hobbies || '无') + '</p>';
+        } else if (app.job_type === 'technician') {
+          html += '<p><strong>专业技能：</strong>' + (app.professional_skills || '无') + '</p>';
+          html += '<p><strong>资质证书：</strong>' + (app.certificates || '无') + '</p>';
+          html += '<p><strong>工作年限：</strong>' + (app.work_years || '无') + '</p>';
+          html += '<p><strong>前公司：</strong>' + (app.previous_company || '无') + '</p>';
+          html += '<p><strong>作品集：</strong>' + (app.portfolio || '无') + '</p>';
+        }
+
+        html += '<p><strong>备注：</strong>' + (app.notes || '无') + '</p>';
+        html += '<p><strong>状态：</strong><span class="status status-' + app.status + '">' + statusLabel + '</span></p>';
+        html += '<p><strong>申请时间：</strong>' + new Date(app.created_at).toLocaleString('zh-CN') + '</p>';
+        html += '</div>';
+
+        document.getElementById('detailContent').innerHTML = html;
+        document.getElementById('detailModal').style.display = 'flex';
+      } catch (e) {
+        alert('获取详情失败: ' + e.message);
+      }
+    }
+
+    async function updateStatus(appId, newStatus) {
+      var statusText = newStatus === 'processed' ? '处理' : '拒绝';
+      if (!confirm('确定要' + statusText + '该应聘申请吗？')) return;
+
+      try {
+        var result = await db.from('applications').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', appId).select();
+        if (result.error) throw result.error;
+        loadApplications();
+        loadStats();
+      } catch (e) {
+        alert('操作失败: ' + e.message);
+      }
+    }
+
+    function exportToExcel() {
+      if (allApplications.length === 0) {
+        alert('没有可导出的数据');
+        return;
+      }
+
+      var statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
+      var jobTypeMap = { 'apprentice': '学徒/普工', 'technician': '牙科技工/质检员' };
+      var exportData = [];
+      
+      for (var i = 0; i < allApplications.length; i++) {
+        var app = allApplications[i];
+        var exportItem = {
+          '编号': app.id,
+          '姓名': app.name,
+          '性别': app.gender,
+          '电话': app.phone,
+          '年龄': app.age,
+          '岗位类型': jobTypeMap[app.job_type] || app.job_type || '',
+          '应聘岗位': app.position,
+          '学历': app.education,
+          '工作经验': app.experience,
+          '备注': app.notes || '',
+          '状态': statusMap[app.status] || app.status,
+          '申请时间': new Date(app.created_at).toLocaleString('zh-CN')
+        };
+
+        // 添加模板特定字段
+        if (app.job_type === 'apprentice') {
+          exportItem['教育背景'] = app.education_background || '';
+          exportItem['工作意愿'] = app.work_willingness || '';
+          exportItem['期望薪资'] = app.expectation || '';
+          exportItem['到岗时间'] = app.availability || '';
+          exportItem['兴趣爱好'] = app.hobbies || '';
+        } else if (app.job_type === 'technician') {
+          exportItem['专业技能'] = app.professional_skills || '';
+          exportItem['资质证书'] = app.certificates || '';
+          exportItem['工作年限'] = app.work_years || '';
+          exportItem['前公司'] = app.previous_company || '';
+          exportItem['作品集'] = app.portfolio || '';
+        }
+
+        exportData.push(exportItem);
+      }
+
+      // 生成所有可能的表头
+      var allHeaders = ['编号', '姓名', '性别', '电话', '年龄', '岗位类型', '应聘岗位', '学历', '工作经验', '备注', '状态', '申请时间'];
+      var apprenticeHeaders = ['教育背景', '工作意愿', '期望薪资', '到岗时间', '兴趣爱好'];
+      var technicianHeaders = ['专业技能', '资质证书', '工作年限', '前公司', '作品集'];
+      var headers = allHeaders.concat(apprenticeHeaders, technicianHeaders);
+
+      // 简单的CSV导出
+      var csv = headers.join(',') + '\n';
+      
+      for (var i = 0; i < exportData.length; i++) {
+        var row = [];
+        for (var j = 0; j < headers.length; j++) {
+          var val = exportData[i][headers[j]] || '';
+          val = String(val).replace(/"/g, '""');
+          if (val.indexOf(',') !== -1 || val.indexOf('"') !== -1 || val.indexOf('\n') !== -1) {
+            val = '"' + val + '"';
+          }
+          row.push(val);
+        }
+        csv += row.join(',') + '\n';
+      }
+
+      var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = '应聘信息数据_' + formatDate(new Date()) + '.csv';
+      link.click();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSDK);
+  </script>
+</body>
+</html>
