@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS template_configs (
   template_type VARCHAR(50) NOT NULL, -- apprentice/technician
   field_name VARCHAR(100) NOT NULL,
   field_label VARCHAR(100) NOT NULL,
-  field_type VARCHAR(50) NOT NULL, -- text, select, date, textarea
+  field_type VARCHAR(50) NOT NULL, -- text, select, date, textarea, radio, checkbox, number
   is_required BOOLEAN DEFAULT false,
   validation_rules JSONB,
-  options JSONB, -- 下拉选项
+  options TEXT, -- 选项值，用逗号分隔
   sort_order INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()

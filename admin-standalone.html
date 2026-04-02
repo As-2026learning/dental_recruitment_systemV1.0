@@ -141,6 +141,52 @@
     .action-btn-confirm:hover { background: #388e3c; }
     .action-btn-cancel { background: #f44336; color: white; }
     .action-btn-cancel:hover { background: #d32f2f; }
+    .action-btn-delete { background: #ff5722; color: white; }
+    .action-btn-delete:hover { background: #e64a19; }
+    .batch-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f8f9ff;
+      border-radius: 8px;
+    }
+    .batch-actions button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .batch-actions .btn-delete {
+      background: #ff5722;
+      color: white;
+    }
+    .batch-actions .btn-delete:hover {
+      background: #e64a19;
+    }
+    .batch-actions .btn-cancel {
+      background: #9e9e9e;
+      color: white;
+    }
+    .batch-actions .btn-cancel:hover {
+      background: #757575;
+    }
+    .batch-actions span {
+      color: #666;
+      font-size: 14px;
+    }
+    .checkbox-cell {
+      width: 40px;
+      text-align: center;
+    }
+    .checkbox-cell input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
     .alert {
       padding: 15px 20px;
       border-radius: 8px;
@@ -198,8 +244,9 @@
       <p>招聘管理系统</p>
       <div class="nav-links">
         <a href="booking.html">← 返回预约页面</a>
-        <a href="applications.html">应聘信息管理 →</a>
+        <a href="integrated-applications.html">应聘信息综合管理 →</a>
         <a href="settings.html">系统设置 →</a>
+        <a href="permissions.html">权限管理 →</a>
       </div>
     </div>
     
@@ -263,9 +310,22 @@
     </div>
   </div>
 
+  <!-- 引入权限管理模块 -->
+  <script src="auth.js"></script>
+
   <script>
-    var SUPABASE_URL = 'https://ztybxgnelynmsgkeqosz.supabase.co';
-    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0eWJ4Z25lbHlubXNna2Vxb3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjc1NjAsImV4cCI6MjA4OTg0MzU2MH0.ISKHxvS_1hR5SkluCQ69O6UQNDHMOisPacaRlm0d33M';
+    // ==================== 登录检查 ====================
+    (function() {
+      const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+      const token = localStorage.getItem('adminToken');
+      if (!isLoggedIn || !token) {
+        window.location.href = 'login.html';
+        return;
+      }
+    })();
+
+    var SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
     var TIME_SLOTS = {
       slot_1: { label: '上午场 09:00-10:00', capacity: 10 },
       slot_2: { label: '上午场 10:00-10:30', capacity: 5 },
@@ -409,6 +469,8 @@
       }
     }
 
+    var selectedBookings = [];
+
     function renderListView(bookings) {
       var container = document.getElementById('dataContainer');
 
@@ -417,8 +479,21 @@
         return;
       }
 
-      var html = '<table class="data-table"><thead><tr>';
-      html += '<th>编号</th><th>姓名</th><th>电话</th><th>岗位</th><th>日期</th><th>时段</th><th>状态</th><th>操作</th>';
+      // 重置选中状态
+      selectedBookings = [];
+
+      var html = '';
+      
+      // 批量操作区域
+      html += '<div class="batch-actions" id="batchActions" style="display: none;">';
+      html += '<span>已选择 <strong id="selectedCount">0</strong> 条记录</span>';
+      html += '<button class="btn-delete" onclick="batchDelete()">批量删除</button>';
+      html += '<button class="btn-cancel" onclick="clearSelection()">取消选择</button>';
+      html += '</div>';
+
+      html += '<table class="data-table"><thead><tr>';
+      html += '<th class="checkbox-cell"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>';
+      html += '<th>序号</th><th>姓名</th><th>电话</th><th>岗位</th><th>日期</th><th>时段</th><th>状态</th><th>操作</th>';
       html += '</tr></thead><tbody>';
 
       var statusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
@@ -432,7 +507,8 @@
         var dateStr = (dateObj.getMonth() + 1) + '/' + dateObj.getDate() + ' ' + weeks[dateObj.getDay()];
 
         html += '<tr>';
-        html += '<td>' + b.id + '</td>';
+        html += '<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" value="' + b.id + '" onclick="toggleRowSelection(' + b.id + ')"></td>';
+        html += '<td>' + (i + 1) + '</td>';
         html += '<td>' + b.name + '</td>';
         html += '<td>' + b.phone + '</td>';
         html += '<td>' + (b.position || '-') + '</td>';
@@ -449,12 +525,128 @@
         } else {
           html += '<button class="action-btn action-btn-confirm" onclick="updateStatus(' + b.id + ', \'confirmed\')">恢复</button>';
         }
+        html += '<button class="action-btn action-btn-delete" onclick="deleteBooking(' + b.id + ', \'' + b.name + '\')">删除</button>';
 
         html += '</td></tr>';
       }
 
       html += '</tbody></table>';
       container.innerHTML = html;
+    }
+
+    function toggleSelectAll() {
+      var selectAllCheckbox = document.getElementById('selectAll');
+      var rowCheckboxes = document.querySelectorAll('.row-checkbox');
+      
+      selectedBookings = [];
+      
+      for (var i = 0; i < rowCheckboxes.length; i++) {
+        rowCheckboxes[i].checked = selectAllCheckbox.checked;
+        if (selectAllCheckbox.checked) {
+          selectedBookings.push(parseInt(rowCheckboxes[i].value));
+        }
+      }
+      
+      updateBatchActions();
+    }
+
+    function toggleRowSelection(bookingId) {
+      var index = selectedBookings.indexOf(bookingId);
+      if (index > -1) {
+        selectedBookings.splice(index, 1);
+      } else {
+        selectedBookings.push(bookingId);
+      }
+      
+      // 更新全选框状态
+      var selectAllCheckbox = document.getElementById('selectAll');
+      var rowCheckboxes = document.querySelectorAll('.row-checkbox');
+      var allChecked = true;
+      for (var i = 0; i < rowCheckboxes.length; i++) {
+        if (!rowCheckboxes[i].checked) {
+          allChecked = false;
+          break;
+        }
+      }
+      selectAllCheckbox.checked = allChecked;
+      
+      updateBatchActions();
+    }
+
+    function updateBatchActions() {
+      var batchActions = document.getElementById('batchActions');
+      var selectedCount = document.getElementById('selectedCount');
+      
+      if (selectedBookings.length > 0) {
+        batchActions.style.display = 'flex';
+        selectedCount.textContent = selectedBookings.length;
+      } else {
+        batchActions.style.display = 'none';
+      }
+    }
+
+    function clearSelection() {
+      selectedBookings = [];
+      var selectAllCheckbox = document.getElementById('selectAll');
+      var rowCheckboxes = document.querySelectorAll('.row-checkbox');
+      
+      if (selectAllCheckbox) selectAllCheckbox.checked = false;
+      for (var i = 0; i < rowCheckboxes.length; i++) {
+        rowCheckboxes[i].checked = false;
+      }
+      
+      updateBatchActions();
+    }
+
+    async function deleteBooking(bookingId, bookingName) {
+      if (!confirm('确定要删除预约人 "' + bookingName + '" 的预约记录吗？\n\n此操作不可恢复！')) return;
+      
+      try {
+        var result = await db.from('bookings').delete().eq('id', bookingId);
+        if (result.error) throw result.error;
+        
+        loadBookings();
+        loadStats();
+        alert('删除成功！');
+      } catch (e) {
+        alert('删除失败: ' + e.message);
+      }
+    }
+
+    async function batchDelete() {
+      if (selectedBookings.length === 0) {
+        alert('请先选择要删除的记录');
+        return;
+      }
+      
+      if (!confirm('确定要删除选中的 ' + selectedBookings.length + ' 条预约记录吗？\n\n此操作不可恢复！')) return;
+      
+      try {
+        var successCount = 0;
+        var errorCount = 0;
+        
+        for (var i = 0; i < selectedBookings.length; i++) {
+          var result = await db.from('bookings').delete().eq('id', selectedBookings[i]);
+          if (result.error) {
+            console.error('删除记录 ' + selectedBookings[i] + ' 失败:', result.error);
+            errorCount++;
+          } else {
+            successCount++;
+          }
+        }
+        
+        clearSelection();
+        loadBookings();
+        loadStats();
+        
+        if (errorCount > 0) {
+          alert('批量删除完成：成功 ' + successCount + ' 条，失败 ' + errorCount + ' 条');
+        } else {
+          alert('成功删除 ' + successCount + ' 条预约记录！');
+        }
+      } catch (e) {
+        alert('批量删除失败: ' + e.message);
+      }
     }
 
     function renderCalendarView(bookings) {

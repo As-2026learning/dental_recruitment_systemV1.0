@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDK 测试工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>SDK 测试工具</h1>
+    
+    <div id="status" class="status">点击按钮开始测试</div>
+    
+    <button onclick="testSDK()">测试 SDK 加载</button>
+    <button onclick="testDB()">测试数据库连接</button>
+
+    <script>
+        var SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        
+        var db = null;
+        
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + (isError ? 'error' : 'success');
+        }
+        
+        function testSDK() {
+            updateStatus('正在加载 SDK...');
+            
+            const cdnList = [
+                'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
+                'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js'
+            ];
+            
+            let index = 0;
+            
+            function tryLoad() {
+                if (index >= cdnList.length) {
+                    updateStatus('SDK 加载失败，请检查网络', true);
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = cdnList[index];
+                script.onload = function() {
+                    updateStatus('SDK 加载成功！');
+                    testDB();
+                };
+                script.onerror = function() {
+                    index++;
+                    tryLoad();
+                };
+                document.head.appendChild(script);
+            }
+            
+            tryLoad();
+        }
+        
+        function testDB() {
+            updateStatus('正在初始化数据库...');
+            
+            if (window.supabase && window.supabase.createClient) {
+                try {
+                    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    updateStatus('数据库初始化成功！');
+                } catch (error) {
+                    updateStatus('数据库初始化失败: ' + error.message, true);
+                }
+            } else {
+                updateStatus('SDK 未加载', true);
+            }
+        }
+    </script>
+</body>
+</html>

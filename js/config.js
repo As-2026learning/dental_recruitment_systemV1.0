@@ -6,10 +6,9 @@
  * 2. 将 YOUR_SUPABASE_ANON_KEY 替换为您在Supabase控制台获取的 anon public key
  */
 
-const SUPABASE_URL = 'https://ztybxgnelynmsgkeqosz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0eWJ4Z25lbHlubXNna2Vxb3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjc1NjAsImV4cCI6MjA4OTg0MzU2MH0.ISKHxvS_1hR5SkluCQ69O6UQNDHMOisPacaRlm0d33M';
-
-// 时段配置
+// 全局配置变量
+window.SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
 const TIME_SLOTS = {
   morning: {
     label: '上午场 (09:00-10:30)',

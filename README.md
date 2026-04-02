@@ -2,6 +2,17 @@
 
 一个基于Supabase和前端技术栈的零成本面试预约管理系统。
 
+## 🌐 在线访问
+
+**系统入口**: [https://as-2026learning.github.io/dental-factory-recruitment/index.html](https://as-2026learning.github.io/dental-factory-recruitment/index.html)
+
+### 直接访问链接
+- [📋 填写应聘信息](https://as-2026learning.github.io/dental-factory-recruitment/candidate-form-complete.html)
+- [📅 预约面试](https://as-2026learning.github.io/dental-factory-recruitment/booking.html)
+- [🔐 后台管理登录](https://as-2026learning.github.io/dental-factory-recruitment/login.html)
+
+**默认账号**: admin / admin123
+
 ## 功能特点
 
 - 📅 面试预约：求职者可在线选择日期和时段进行预约
@@ -92,8 +103,13 @@ python -m http.server 8000
 - **time_slots**：时段表
 - **system_config**：系统配置表
 - **bookings**：预约表
+- **applications**：应聘信息表
+- **template_configs**：模板配置表
 
-详细结构请参考 `sql/create-config-tables.sql` 文件。
+详细结构请参考以下文件：
+- `sql/create-config-tables.sql`：创建基础配置表
+- `sql/create-application-table.sql`：创建应聘信息表
+- `sql/create-template-config-table.sql`：创建模板配置表
 
 ## 安全注意事项
 

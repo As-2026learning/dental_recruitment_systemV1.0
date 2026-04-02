@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库设置 - 招聘系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .section {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+        .result {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { border-left: 4px solid #4caf50; color: #2e7d32; }
+        .error { border-left: 4px solid #f44336; color: #c62828; }
+        .info { border-left: 4px solid #2196f3; color: #1565c0; }
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .config-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ 数据库设置工具</h1>
+        
+        <div class="section">
+            <h2>Supabase 配置</h2>
+            <input type="text" id="supabaseUrl" class="config-input" placeholder="Supabase Project URL" value="https://dxrghlqnwfwpuxjvyisv.supabase.co">
+            <input type="text" id="supabaseKey" class="config-input" placeholder="Supabase Anon Key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ">
+            <button class="btn btn-primary" onclick="connectSupabase()">连接 Supabase</button>
+            <div id="connectionResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>创建数据库表</h2>
+            <button class="btn btn-primary" onclick="createAllTables()">创建所有表</button>
+            <button class="btn btn-primary" onclick="createApplicationsTable()">创建 applications 表</button>
+            <button class="btn btn-primary" onclick="createBookingsTable()">创建 bookings 表</button>
+            <button class="btn btn-primary" onclick="createTemplatesTable()">创建 templates 表</button>
+            <button class="btn btn-primary" onclick="createFieldConfigsTable()">创建 field_configs 表</button>
+            <div id="tablesResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>测试数据库连接</h2>
+            <button class="btn btn-primary" onclick="testConnection()">测试连接</button>
+            <div id="testResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        var supabase = null;
+        
+        function connectSupabase() {
+            var url = document.getElementById('supabaseUrl').value;
+            var key = document.getElementById('supabaseKey').value;
+            var resultDiv = document.getElementById('connectionResult');
+            
+            try {
+                supabase = window.supabase.createClient(url, key);
+                resultDiv.innerHTML = '<div class="success">✅ Supabase 连接成功！</div>';
+            } catch (e) {
+                resultDiv.innerHTML = '<div class="error">❌ 连接失败: ' + e.message + '</div>';
+            }
+        }
+        
+        async function createAllTables() {
+            var resultDiv = document.getElementById('tablesResult');
+            resultDiv.innerHTML = '开始创建所有表...\n\n';
+            
+            if (!supabase) {
+                resultDiv.innerHTML += '<div class="error">❌ 请先连接 Supabase</div>';
+                return;
+            }
+            
+            // 创建 applications 表
+            resultDiv.innerHTML += '创建 applications 表...\n';
+            try {
+                var { error } = await supabase.rpc('create_applications_table');
+                if (error) {
+                    // 尝试直接创建
+                    var { error: createError } = await supabase.from('applications').select('id').limit(1);
+                    if (createError && createError.code === 'PGRST116') {
+                        // 表不存在，需要创建
+                        resultDiv.innerHTML += '<div class="info">ℹ️ applications 表需要手动创建</div>\n';
+                    } else {
+                        resultDiv.innerHTML += '<div class="success">✅ applications 表已存在</div>\n';
+                    }
+                } else {
+                    resultDiv.innerHTML += '<div class="success">✅ applications 表创建成功</div>\n';
+                }
+            } catch (e) {
+                resultDiv.innerHTML += '<div class="error">❌ applications 表: ' + e.message + '</div>\n';
+            }
+            
+            // 创建其他表...
+            resultDiv.innerHTML += '\n请使用 Supabase SQL Editor 执行以下 SQL 语句来创建表:\n\n';
+            resultDiv.innerHTML += getCreateTablesSQL();
+        }
+        
+        function getCreateTablesSQL() {
+            return `-- 创建 applications 表
+CREATE TABLE IF NOT EXISTS public.applications (
+    id SERIAL PRIMARY KEY,
+    position VARCHAR(255),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    age INTEGER,
+    gender VARCHAR(10),
+    education VARCHAR(50),
+    experience VARCHAR(50),
+    form_data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建 bookings 表
+CREATE TABLE IF NOT EXISTS public.bookings (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER REFERENCES public.applications(id),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    position VARCHAR(255),
+    booking_date DATE,
+    time_slot VARCHAR(50),
+    notes TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建 templates 表
+CREATE TABLE IF NOT EXISTS public.templates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建 field_configs 表
+CREATE TABLE IF NOT EXISTS public.field_configs (
+    id SERIAL PRIMARY KEY,
+    field_name VARCHAR(255) NOT NULL,
+    field_label VARCHAR(255),
+    field_type VARCHAR(50),
+    is_required BOOLEAN DEFAULT false,
+    default_value TEXT,
+    validation_rule VARCHAR(50),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 插入默认模板数据
+INSERT INTO public.templates (name, description) VALUES
+('基础模板', '包含基本个人信息字段'),
+('技术岗位模板', '包含技术技能相关字段')
+ON CONFLICT DO NOTHING;
+
+-- 创建 template_field_mappings 表
+CREATE TABLE IF NOT EXISTS public.template_field_mappings (
+    id SERIAL PRIMARY KEY,
+    template_id INTEGER REFERENCES public.templates(id),
+    field_id INTEGER REFERENCES public.field_configs(id),
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(template_id, field_id)
+);
+
+-- 创建 field_options 表
+CREATE TABLE IF NOT EXISTS public.field_options (
+    id SERIAL PRIMARY KEY,
+    field_id INTEGER REFERENCES public.field_configs(id),
+    option_value VARCHAR(255) NOT NULL,
+    option_label VARCHAR(255),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建 positions 表
+CREATE TABLE IF NOT EXISTS public.positions (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建 time_slots 表
+CREATE TABLE IF NOT EXISTS public.time_slots (
+    id SERIAL PRIMARY KEY,
+    slot_key VARCHAR(50) NOT NULL,
+    label VARCHAR(255) NOT NULL,
+    start_time VARCHAR(10),
+    end_time VARCHAR(10),
+    capacity INTEGER DEFAULT 10,
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建 system_config 表
+CREATE TABLE IF NOT EXISTS public.system_config (
+    id SERIAL PRIMARY KEY,
+    config_key VARCHAR(100) NOT NULL,
+    config_value TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(config_key)
+);
+
+-- 插入默认字段配置
+INSERT INTO public.field_configs (field_name, field_label, field_type, is_required, sort_order) VALUES
+('name', '姓名', 'text', true, 1),
+('gender', '性别', 'radio', true, 2),
+('age', '年龄', 'number', true, 3),
+('phone', '联系电话', 'text', true, 4),
+('education', '学历', 'select', true, 5),
+('experience', '工作经验', 'select', true, 6)
+ON CONFLICT DO NOTHING;
+
+-- 插入默认岗位数据
+INSERT INTO public.positions (name, sort_order, is_active) VALUES
+('学徒', 1, true),
+('普工', 2, true),
+('牙科技工', 3, true),
+('牙科质检员', 4, true)
+ON CONFLICT DO NOTHING;
+
+-- 插入默认时段数据
+INSERT INTO public.time_slots (slot_key, label, start_time, end_time, capacity, sort_order, is_active) VALUES
+('slot_1', '上午场 09:00-10:00', '09:00', '10:00', 10, 1, true),
+('slot_2', '上午场 10:00-10:30', '10:00', '10:30', 5, 2, true),
+('slot_3', '下午场 13:00-14:00', '13:00', '14:00', 10, 3, true),
+('slot_4', '下午场 14:00-15:00', '14:00', '15:00', 10, 4, true),
+('slot_5', '下午场 15:00-15:30', '15:00', '15:30', 5, 5, true)
+ON CONFLICT DO NOTHING;
+
+-- 插入默认系统配置
+INSERT INTO public.system_config (config_key, config_value) VALUES
+('booking_notice', '请准时参加面试|携带身份证和简历|提前10分钟到达|穿着得体'),
+('banner_booking', '面试预约')
+ON CONFLICT DO NOTHING;`;
+        }
+        
+        async function testConnection() {
+            var resultDiv = document.getElementById('testResult');
+            
+            if (!supabase) {
+                resultDiv.innerHTML = '<div class="error">❌ 请先连接 Supabase</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '测试连接...\n';
+            
+            try {
+                var { data, error } = await supabase
+                    .from('applications')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    resultDiv.innerHTML += '<div class="error">❌ 连接失败: ' + error.message + '</div>';
+                    if (error.code === 'PGRST116') {
+                        resultDiv.innerHTML += '\n<div class="info">ℹ️ 表不存在，请先创建数据库表</div>';
+                    }
+                } else {
+                    resultDiv.innerHTML += '<div class="success">✅ 连接成功！表存在</div>';
+                }
+            } catch (e) {
+                resultDiv.innerHTML += '<div class="error">❌ 测试失败: ' + e.message + '</div>';
+            }
+        }
+        
+        // 页面加载时自动连接
+        window.addEventListener('load', function() {
+            setTimeout(connectSupabase, 1000);
+        });
+    </script>
+</body>
+</html>
