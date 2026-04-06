@@ -366,37 +366,164 @@
         }
         
         /* 分页 */
-        .pagination {
+        .pagination-container {
             padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-size-selector select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+            min-width: 70px;
+        }
+
+        .page-size-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
+            flex-wrap: wrap;
         }
-        
+
         .pagination button {
             padding: 8px 12px;
             border: 1px solid #ddd;
             background: white;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 6px;
             transition: all 0.3s;
+            font-size: 14px;
+            min-width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
+
         .pagination button:hover:not(:disabled) {
             background: #667eea;
             color: white;
             border-color: #667eea;
         }
-        
+
         .pagination button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            background: #f5f5f5;
         }
-        
-        .pagination .page-info {
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            font-weight: 600;
+        }
+
+        .pagination .page-ellipsis {
+            padding: 8px 12px;
+            color: #999;
+            cursor: default;
+        }
+
+        .pagination-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-size: 14px;
             color: #666;
+        }
+
+        .page-jump {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-jump input {
+            width: 60px;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .page-jump input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .page-jump button {
+            padding: 6px 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .page-jump button:hover {
+            background: #5a6fd6;
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .page-info strong {
+            color: #667eea;
+        }
+
+        /* 分页信息栏 */
+        .pagination-info-bar {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .pagination-info-bar .total-info {
+            font-weight: 500;
+        }
+
+        .pagination-info-bar .range-info {
+            color: #999;
         }
         
         /* 详情弹窗 */
@@ -615,6 +742,8 @@
                 <a href="candidate-form-complete.html">返回应聘页面</a>
                 <a href="booking.html">面试预约</a>
                 <a href="admin-standalone.html">预约管理</a>
+                <a href="recruitment-process.html" style="color: #52c41a; font-weight: bold;">📋 招聘流程</a>
+                <a href="recruitment-dashboard.html">📊 数据看板</a>
                 <a href="settings.html">系统设置</a>
                 <a href="permissions.html">权限管理</a>
                 <a href="#" onclick="logout()" style="color: #ff6b6b;">退出登录</a>
@@ -655,12 +784,12 @@
                     <label>应聘岗位:</label>
                     <select id="filterPosition">
                         <option value="">全部岗位</option>
-                        <option value="车瓷">车瓷</option>
-                        <option value="上瓷">上瓷</option>
-                        <option value="上釉">上釉</option>
-                        <option value="牙科技工">牙科技工</option>
-                        <option value="学徒">学徒</option>
-                        <option value="普工">普工</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>应聘工种:</label>
+                    <select id="filterJobType">
+                        <option value="">全部工种</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -718,6 +847,9 @@
                     <button class="btn btn-success" onclick="exportToExcel()">
                         📊 导出Excel
                     </button>
+                    <button class="btn btn-secondary" onclick="batchDelete()" id="batchDeleteBtn" disabled>
+                        🗑️ 批量删除
+                    </button>
                 </div>
             </div>
             <div id="tableContainer">
@@ -725,7 +857,34 @@
                     <div class="spinner"></div>
                 </div>
             </div>
-            <div class="pagination" id="pagination"></div>
+            <div class="pagination-info-bar" id="paginationInfoBar" style="display: none;">
+                <span class="total-info">共 <strong id="totalRecords">0</strong> 条记录</span>
+                <span class="range-info" id="currentRange">显示第 0-0 条</span>
+            </div>
+            <div class="pagination-container" id="paginationContainer" style="display: none;">
+                <div class="pagination-left">
+                    <div class="page-size-selector">
+                        <label>每页显示:</label>
+                        <select id="pageSizeSelector" onchange="changePageSize(this.value)">
+                            <option value="10">10条</option>
+                            <option value="15">15条</option>
+                            <option value="20" selected>20条</option>
+                            <option value="50">50条</option>
+                            <option value="100">100条</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pagination" id="pagination"></div>
+                <div class="pagination-right">
+                    <span class="page-info">第 <strong id="currentPageNum">1</strong> / <strong id="totalPagesNum">1</strong> 页</span>
+                    <div class="page-jump">
+                        <span>跳至</span>
+                        <input type="number" id="pageJumpInput" min="1" placeholder="页码" onkeypress="handlePageJumpKeypress(event)">
+                        <span>页</span>
+                        <button onclick="jumpToPage()">确定</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -742,10 +901,10 @@
         </div>
     </div>
 
-    <!-- 导出进度 -->
+    <!-- 进度弹窗 -->
     <div class="progress-overlay" id="progressOverlay">
         <div class="progress-box">
-            <h3>正在导出数据...</h3>
+            <h3 id="progressTitle">正在处理...</h3>
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
@@ -789,26 +948,28 @@
         var allApplications = [];
         var filteredApplications = [];
         var currentPage = 1;
-        var pageSize = 20;
+        var pageSize = parseInt(localStorage.getItem('applicationsPageSize')) || 20; // 从本地存储读取用户偏好，默认20
         var sortField = 'created_at';
         var sortDirection = 'desc';
         
-        // 时段映射
+        // 时段映射 - 与预约管理模块保持一致
         var TIME_SLOTS = {
+            'slot_1': { label: '上午场 09:00-10:00', time: '09:00-10:00' },
+            'slot_2': { label: '上午场 10:00-10:30', time: '10:00-10:30' },
+            'slot_3': { label: '下午场 13:00-14:00', time: '13:00-14:00' },
+            'slot_4': { label: '下午场 14:00-15:00', time: '14:00-15:00' },
+            'slot_5': { label: '下午场 15:00-15:30', time: '15:00-15:30' },
+            // 兼容旧数据格式
             'morning_1': { label: '上午场 09:00-10:00', time: '09:00-10:00' },
             'morning_2': { label: '上午场 10:00-10:30', time: '10:00-10:30' },
             'afternoon_1': { label: '下午场 14:00-15:00', time: '14:00-15:00' },
             'afternoon_2': { label: '下午场 15:00-16:00', time: '15:00-16:00' },
-            // 实际使用的时段值
-            'slot_1': { label: '上午场 09:00-10:00', time: '09:00-10:00' },
-            'slot_2': { label: '上午场 10:00-10:30', time: '10:00-10:30' },
-            'slot_3': { label: '下午场 14:00-15:00', time: '14:00-15:00' },
-            'slot_4': { label: '下午场 15:00-16:00', time: '15:00-16:00' },
             // 其他可能的时段格式
             '09:00-10:00': { label: '上午场 09:00-10:00', time: '09:00-10:00' },
             '10:00-10:30': { label: '上午场 10:00-10:30', time: '10:00-10:30' },
+            '13:00-14:00': { label: '下午场 13:00-14:00', time: '13:00-14:00' },
             '14:00-15:00': { label: '下午场 14:00-15:00', time: '14:00-15:00' },
-            '15:00-16:00': { label: '下午场 15:00-16:00', time: '15:00-16:00' }
+            '15:00-15:30': { label: '下午场 15:00-15:30', time: '15:00-15:30' }
         };
         
         // ==================== 初始化 ====================
@@ -826,6 +987,70 @@
             } catch (e) {
                 console.error('❌ Supabase 初始化失败:', e);
                 return false;
+            }
+        }
+        
+        // ==================== 加载筛选选项 ====================
+        async function loadFilterOptions() {
+            try {
+                // 加载岗位选项
+                const positionSelect = document.getElementById('filterPosition');
+                const positionResult = await supabaseClient.from('positions').select('*').eq('is_active', true).order('sort_order');
+                if (!positionResult.error && positionResult.data && positionResult.data.length > 0) {
+                    positionSelect.innerHTML = '<option value="">全部岗位</option>';
+                    positionResult.data.forEach(pos => {
+                        positionSelect.innerHTML += `<option value="${pos.name}">${pos.name}</option>`;
+                    });
+                    console.log('✅ 岗位选项加载成功:', positionResult.data.length, '个');
+                } else {
+                    // 如果数据库中没有数据，使用默认选项
+                    positionSelect.innerHTML = `
+                        <option value="">全部岗位</option>
+                        <option value="牙科技工">牙科技工</option>
+                        <option value="学徒">学徒</option>
+                        <option value="普工">普工</option>
+                    `;
+                    console.log('⚠️ 使用默认岗位选项');
+                }
+                
+                // 加载工种选项
+                const jobTypeSelect = document.getElementById('filterJobType');
+                try {
+                    const jobTypeResult = await supabaseClient.from('job_types').select('*').eq('is_active', true).order('sort_order');
+                    if (!jobTypeResult.error && jobTypeResult.data && jobTypeResult.data.length > 0) {
+                        jobTypeSelect.innerHTML = '<option value="">全部工种</option>';
+                        jobTypeResult.data.forEach(job => {
+                            jobTypeSelect.innerHTML += `<option value="${job.name}">${job.name}</option>`;
+                        });
+                        console.log('✅ 工种选项加载成功:', jobTypeResult.data.length, '个');
+                    } else {
+                        throw new Error('查询失败或无数据');
+                    }
+                } catch (e) {
+                    console.log('⚠️ 从数据库加载工种失败，使用默认选项:', e.message);
+                    // 使用默认选项
+                    jobTypeSelect.innerHTML = `
+                        <option value="">全部工种</option>
+                        <option value="上瓷">上瓷</option>
+                        <option value="车瓷">车瓷</option>
+                        <option value="上釉">上釉</option>
+                    `;
+                }
+            } catch (e) {
+                console.error('❌ 加载筛选选项失败:', e);
+                // 出错时使用默认选项
+                document.getElementById('filterPosition').innerHTML = `
+                    <option value="">全部岗位</option>
+                    <option value="牙科技工">牙科技工</option>
+                    <option value="学徒">学徒</option>
+                    <option value="普工">普工</option>
+                `;
+                document.getElementById('filterJobType').innerHTML = `
+                    <option value="">全部工种</option>
+                    <option value="上瓷">上瓷</option>
+                    <option value="车瓷">车瓷</option>
+                    <option value="上釉">上釉</option>
+                `;
             }
         }
         
@@ -849,6 +1074,12 @@
                     if (!result.error && result.data) {
                         dbApplications = result.data;
                         console.log('✅ 数据库应聘信息加载成功:', dbApplications.length, '条');
+                        // 调试：输出第一条记录的字段
+                        if (dbApplications.length > 0) {
+                            console.log('第一条记录:', dbApplications[0]);
+                            console.log('form_data:', dbApplications[0].form_data);
+                            console.log('dynamic_fields:', dbApplications[0].dynamic_fields);
+                        }
                     } else if (result.error) {
                         console.warn('⚠️ 数据库查询错误:', result.error.message);
                         dbError = result.error;
@@ -977,6 +1208,7 @@
         // ==================== 筛选功能 ====================
         function applyFilters() {
             const positionFilter = document.getElementById('filterPosition').value;
+            const jobTypeFilter = document.getElementById('filterJobType').value;
             const statusFilter = document.getElementById('filterStatus').value;
             const bookingStatusFilter = document.getElementById('filterBookingStatus').value;
             const bookingDateFilter = document.getElementById('filterBookingDate').value;
@@ -989,6 +1221,34 @@
                 
                 // 岗位筛选
                 if (positionFilter && app.position !== positionFilter) return false;
+                
+                // 工种筛选
+                if (jobTypeFilter) {
+                    // 从动态字段中查找工种信息
+                    let jobType = '';
+                    // 尝试多种可能的字段名
+                    const jobTypeFields = ['job_type', 'job type', 'Job Type', '工种', '工种类型', '应聘工种', 'jobType', 'job'];
+                    for (const fieldName of jobTypeFields) {
+                        if (dynamicFields[fieldName] && dynamicFields[fieldName] !== '') {
+                            jobType = dynamicFields[fieldName];
+                            break;
+                        }
+                    }
+                    // 如果还是没找到，尝试遍历所有动态字段
+                    if (!jobType) {
+                        for (const key in dynamicFields) {
+                            const lowerKey = key.toLowerCase();
+                            if (lowerKey.includes('job') || lowerKey.includes('工种')) {
+                                if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                    jobType = dynamicFields[key];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // 如果工种不匹配，过滤掉
+                    if (jobType !== jobTypeFilter) return false;
+                }
                 
                 // 应聘状态筛选
                 if (statusFilter && app.status !== statusFilter) return false;
@@ -1045,6 +1305,7 @@
         
         function resetFilters() {
             document.getElementById('filterPosition').value = '';
+            document.getElementById('filterJobType').value = '';
             document.getElementById('filterStatus').value = '';
             document.getElementById('filterBookingStatus').value = '';
             document.getElementById('filterBookingDate').value = '';
@@ -1102,21 +1363,34 @@
         function renderTable() {
             const container = document.getElementById('tableContainer');
             const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
+            const end = Math.min(start + pageSize, filteredApplications.length);
             const pageData = filteredApplications.slice(start, end);
-            
+
             document.getElementById('displayCount').textContent = filteredApplications.length;
-            
-            if (pageData.length === 0) {
+
+            // 更新分页信息栏
+            const paginationInfoBar = document.getElementById('paginationInfoBar');
+            const paginationContainer = document.getElementById('paginationContainer');
+
+            if (filteredApplications.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">📭</div>
                         <p>暂无数据</p>
                     </div>
                 `;
-                document.getElementById('pagination').innerHTML = '';
+                paginationInfoBar.style.display = 'none';
+                paginationContainer.style.display = 'none';
                 return;
             }
+
+            // 显示分页控件
+            paginationInfoBar.style.display = 'flex';
+            paginationContainer.style.display = 'flex';
+
+            // 更新记录数显示
+            document.getElementById('totalRecords').textContent = filteredApplications.length;
+            document.getElementById('currentRange').textContent = `显示第 ${start + 1}-${end} 条`;
             
             const statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
             const bookingStatusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
@@ -1131,12 +1405,12 @@
                             <th onclick="toggleSort('name')">
                                 姓名 <span class="sort-icon">${sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
                             </th>
-                            <th>电话</th>
                             <th onclick="toggleSort('position')">
                                 岗位 <span class="sort-icon">${sortField === 'position' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
                             </th>
+                            <th>工种</th>
                             <th>学历</th>
-                            <th>工作经验</th>
+                            <th>电话</th>
                             <th onclick="toggleSort('booking_date')">
                                 面试日期 <span class="sort-icon">${sortField === 'booking_date' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
                             </th>
@@ -1155,11 +1429,16 @@
             pageData.forEach((app, index) => {
                 const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
                 
-                // 辅助函数：获取字段值（支持多种字段名格式）
+                // 辅助函数：获取字段值（支持多种字段名格式，同时检查动态字段和数据库直接字段）
                 function getFieldValue(...fieldNames) {
                     for (const name of fieldNames) {
+                        // 首先检查动态字段
                         if (dynamicFields[name] !== undefined && dynamicFields[name] !== '') {
                             return dynamicFields[name];
+                        }
+                        // 然后检查数据库记录的直接字段
+                        if (app[name] !== undefined && app[name] !== '') {
+                            return app[name];
                         }
                     }
                     return '';
@@ -1167,6 +1446,43 @@
                 
                 const education = app.education || getFieldValue('education', 'Education') || '-';
                 const experience = app.experience || getFieldValue('experience', 'Experience') || '-';
+                
+                // 尝试多种可能的工种字段名
+                let jobType = getFieldValue('job_type', 'job type', 'Job Type', '工种', '工种类型', '应聘工种', 'jobType', 'job');
+                
+                // 如果还是没找到，尝试遍历所有动态字段，查找包含"工种"或"job"的字段
+                if (!jobType) {
+                    for (const key in dynamicFields) {
+                        const lowerKey = key.toLowerCase();
+                        if (lowerKey.includes('job') || lowerKey.includes('工种') || lowerKey.includes('type')) {
+                            if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                jobType = dynamicFields[key];
+                                console.log('通过模糊匹配找到工种字段:', key, '=', jobType);
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // 如果还是没找到，尝试从 form_data 中查找 "应聘工种" 或 "工种" 字段（中文标签）
+                if (!jobType) {
+                    // 遍历 form_data 的所有键，查找可能的中文工种字段名
+                    for (const key in dynamicFields) {
+                        if (key.includes('工种') || key === '应聘工种') {
+                            if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                jobType = dynamicFields[key];
+                                console.log('找到中文工种字段:', key, '=', jobType);
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // 调试：输出第一条记录的动态字段
+                if (index === 0) {
+                    console.log('动态字段:', dynamicFields);
+                    console.log('工种字段值:', jobType || '-');
+                }
                 
                 let bookingDate = '-';
                 let bookingSlot = '-';
@@ -1186,10 +1502,10 @@
                             <input type="checkbox" class="row-checkbox" value="${app.id}">
                         </td>
                         <td>${app.name || '-'}</td>
-                        <td>${app.phone || '-'}</td>
                         <td>${app.position || '-'}</td>
+                        <td>${jobType}</td>
                         <td>${education}</td>
-                        <td>${experience}</td>
+                        <td>${app.phone || '-'}</td>
                         <td>${bookingDate}</td>
                         <td>${bookingSlot}</td>
                         <td><span class="status-tag ${bookingStatusClass}">${bookingStatus}</span></td>
@@ -1197,12 +1513,12 @@
                         <td>${new Date(app.created_at).toLocaleString('zh-CN')}</td>
                         <td>
                             <div class="action-btns">
-                                <button class="action-btn action-btn-view" onclick="viewDetail('${app.id}')">查看</button>
+                                <button type="button" class="action-btn action-btn-view" data-action="view" data-id="${app.id}">查看</button>
                                 ${app.status === 'pending' ? `
-                                    <button class="action-btn action-btn-process" onclick="updateStatus('${app.id}', 'processed')">处理</button>
-                                    <button class="action-btn action-btn-reject" onclick="updateStatus('${app.id}', 'rejected')">拒绝</button>
+                                    <button type="button" class="action-btn action-btn-process" data-action="process" data-id="${app.id}">处理</button>
+                                    <button type="button" class="action-btn action-btn-reject" data-action="reject" data-id="${app.id}">拒绝</button>
                                 ` : ''}
-                                <button class="action-btn action-btn-delete" onclick="deleteApplication('${app.id}', '${app.name}')">删除</button>
+                                <button type="button" class="action-btn action-btn-delete" data-action="delete" data-id="${app.id}" data-name="${app.name || ''}">删除</button>
                             </div>
                         </td>
                     </tr>
@@ -1220,35 +1536,81 @@
         function renderPagination() {
             const totalPages = Math.ceil(filteredApplications.length / pageSize);
             const pagination = document.getElementById('pagination');
-            
+
+            // 更新页码显示
+            document.getElementById('currentPageNum').textContent = currentPage;
+            document.getElementById('totalPagesNum').textContent = totalPages;
+
             if (totalPages <= 1) {
                 pagination.innerHTML = '';
                 return;
             }
-            
+
             let html = '';
-            
-            // 上一页
-            html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
-            
-            // 页码
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-                    html += `<button onclick="goToPage(${i})" ${i === currentPage ? 'style="background:#667eea;color:white"' : ''}>${i}</button>`;
-                } else if (i === currentPage - 3 || i === currentPage + 3) {
-                    html += `<span>...</span>`;
+
+            // 上一页按钮
+            html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} title="上一页">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>`;
+
+            // 智能页码显示算法
+            const maxVisiblePages = 7; // 最多显示的页码按钮数
+            let startPage, endPage;
+
+            if (totalPages <= maxVisiblePages) {
+                // 总页数较少，显示所有页码
+                startPage = 1;
+                endPage = totalPages;
+            } else {
+                // 总页数较多，使用智能显示
+                if (currentPage <= 4) {
+                    // 当前页靠近开头
+                    startPage = 1;
+                    endPage = 5;
+                } else if (currentPage >= totalPages - 3) {
+                    // 当前页靠近结尾
+                    startPage = totalPages - 4;
+                    endPage = totalPages;
+                } else {
+                    // 当前页在中间
+                    startPage = currentPage - 2;
+                    endPage = currentPage + 2;
                 }
             }
-            
-            // 下一页
-            html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
-            
-            // 页码信息
-            html += `<span class="page-info">第 ${currentPage} / ${totalPages} 页，共 ${filteredApplications.length} 条</span>`;
-            
+
+            // 第一页
+            if (startPage > 1) {
+                html += `<button onclick="goToPage(1)" ${1 === currentPage ? 'class="active"' : ''}>1</button>`;
+                if (startPage > 2) {
+                    html += `<span class="page-ellipsis">...</span>`;
+                }
+            }
+
+            // 中间页码
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button onclick="goToPage(${i})" ${i === currentPage ? 'class="active"' : ''}>${i}</button>`;
+            }
+
+            // 最后一页
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span class="page-ellipsis">...</span>`;
+                }
+                html += `<button onclick="goToPage(${totalPages})" ${totalPages === currentPage ? 'class="active"' : ''}>${totalPages}</button>`;
+            }
+
+            // 下一页按钮
+            html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} title="下一页">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>`;
+
             pagination.innerHTML = html;
         }
-        
+
         function goToPage(page) {
             const totalPages = Math.ceil(filteredApplications.length / pageSize);
             if (page < 1 || page > totalPages) return;
@@ -1256,20 +1618,81 @@
             renderTable();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
+        // 改变每页显示条数
+        function changePageSize(newSize) {
+            const oldPageSize = pageSize;
+            pageSize = parseInt(newSize);
+
+            // 计算新的当前页，尽量保持显示的数据范围不变
+            const currentFirstItem = (currentPage - 1) * oldPageSize + 1;
+            currentPage = Math.ceil(currentFirstItem / pageSize);
+
+            // 确保页码在有效范围内
+            const totalPages = Math.ceil(filteredApplications.length / pageSize);
+            if (currentPage > totalPages) {
+                currentPage = totalPages || 1;
+            }
+
+            // 保存用户偏好到本地存储
+            localStorage.setItem('applicationsPageSize', pageSize);
+
+            renderTable();
+        }
+
+        // 跳转到指定页
+        function jumpToPage() {
+            const input = document.getElementById('pageJumpInput');
+            const page = parseInt(input.value);
+            const totalPages = Math.ceil(filteredApplications.length / pageSize);
+
+            if (isNaN(page) || page < 1) {
+                alert('请输入有效的页码');
+                return;
+            }
+
+            if (page > totalPages) {
+                alert(`页码超出范围，最大页码为 ${totalPages}`);
+                return;
+            }
+
+            goToPage(page);
+            input.value = ''; // 清空输入框
+        }
+
+        // 处理页码跳转输入框的回车事件
+        function handlePageJumpKeypress(event) {
+            if (event.key === 'Enter') {
+                jumpToPage();
+            }
+        }
         
         // ==================== 查看详情 ====================
         async function viewDetail(id) {
-            const app = allApplications.find(a => a.id === id);
-            if (!app) return;
+            console.log('viewDetail 被调用, id:', id, '类型:', typeof id);
+            console.log('allApplications:', allApplications);
+            // 使用宽松比较，处理字符串和数字类型的id
+            const app = allApplications.find(a => String(a.id) === String(id));
+            console.log('找到的应用:', app);
+            if (!app) {
+                console.error('未找到应用, id:', id);
+                alert('未找到该应聘信息');
+                return;
+            }
             
             const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
             const modalBody = document.getElementById('modalBody');
             
-            // 辅助函数：获取字段值（支持多种字段名格式）
+            // 辅助函数：获取字段值（支持多种字段名格式，同时检查动态字段和数据库直接字段）
             function getFieldValue(...fieldNames) {
                 for (const name of fieldNames) {
+                    // 首先检查动态字段
                     if (dynamicFields[name] !== undefined && dynamicFields[name] !== '') {
                         return dynamicFields[name];
+                    }
+                    // 然后检查数据库记录的直接字段
+                    if (app[name] !== undefined && app[name] !== '') {
+                        return app[name];
                     }
                 }
                 return '';
@@ -1300,6 +1723,35 @@
                             <span>${app.position || getFieldValue('position', 'Position') || '-'}</span>
                         </div>
                         <div class="detail-item">
+                            <label>工种</label>
+                            <span>${(() => {
+                                let jobType = getFieldValue('job_type', 'job type', 'Job Type', '工种', '工种类型', '应聘工种', 'jobType', 'job');
+                                if (!jobType) {
+                                    for (const key in dynamicFields) {
+                                        const lowerKey = key.toLowerCase();
+                                        if (lowerKey.includes('job') || lowerKey.includes('工种') || lowerKey.includes('type')) {
+                                            if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                                jobType = dynamicFields[key];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                // 如果还是没找到，尝试从 form_data 中查找 "应聘工种" 或 "工种" 字段（中文标签）
+                                if (!jobType) {
+                                    for (const key in dynamicFields) {
+                                        if (key.includes('工种') || key === '应聘工种') {
+                                            if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                                jobType = dynamicFields[key];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                return jobType || '-';
+                            })()}</span>
+                        </div>
+                        <div class="detail-item">
                             <label>学历</label>
                             <span>${app.education || getFieldValue('education', 'Education') || '-'}</span>
                         </div>
@@ -1309,7 +1761,7 @@
                         </div>
                         <div class="detail-item">
                             <label>婚姻状况</label>
-                            <span>${getFieldValue('marital_status', 'marital status', 'Marital Status') || '-'}</span>
+                            <span>${getFieldValue('marital status', 'marital_status', 'Marital Status', '婚姻状况') || '-'}</span>
                         </div>
                     </div>
                 </div>
@@ -1420,7 +1872,14 @@
             }
             
             modalBody.innerHTML = html;
-            document.getElementById('detailModal').classList.add('show');
+            const modal = document.getElementById('detailModal');
+            console.log('显示弹窗:', modal);
+            if (modal) {
+                modal.classList.add('show');
+                console.log('弹窗已显示');
+            } else {
+                console.error('未找到弹窗元素 detailModal');
+            }
         }
         
         function closeModal() {
@@ -1742,7 +2201,22 @@
         
         // ==================== 导出Excel ====================
         async function exportToExcel() {
-            if (filteredApplications.length === 0) {
+            // 检查是否有选中的记录
+            const checkedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            let appsToExport = [];
+            
+            if (checkedCheckboxes.length > 0) {
+                // 如果有选中的记录，只导出选中的记录
+                const selectedIds = Array.from(checkedCheckboxes).map(cb => cb.value);
+                appsToExport = filteredApplications.filter(app => selectedIds.includes(String(app.id)));
+                console.log('导出选中记录:', appsToExport.length, '条');
+            } else {
+                // 如果没有选中的记录，导出所有筛选后的数据
+                appsToExport = filteredApplications;
+                console.log('导出所有记录:', appsToExport.length, '条');
+            }
+            
+            if (appsToExport.length === 0) {
                 alert('没有可导出的数据');
                 return;
             }
@@ -1750,21 +2224,28 @@
             const overlay = document.getElementById('progressOverlay');
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
+            const progressTitle = document.getElementById('progressTitle');
             
+            progressTitle.textContent = '正在导出数据...';
             overlay.classList.add('show');
             
             try {
                 const statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
                 const bookingStatusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
                 
-                const exportData = filteredApplications.map((app, index) => {
+                const exportData = appsToExport.map((app, index) => {
                     const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
                     
-                    // 辅助函数：获取字段值（支持多种字段名格式）
+                    // 辅助函数：获取字段值（支持多种字段名格式，同时检查动态字段和数据库直接字段）
                     function getFieldValue(...fieldNames) {
                         for (const name of fieldNames) {
+                            // 首先检查动态字段
                             if (dynamicFields[name] !== undefined && dynamicFields[name] !== '') {
                                 return dynamicFields[name];
+                            }
+                            // 然后检查数据库记录的直接字段
+                            if (app[name] !== undefined && app[name] !== '') {
+                                return app[name];
                             }
                         }
                         return '';
@@ -1773,13 +2254,38 @@
                     const data = {
                         '序号': index + 1,
                         '姓名': app.name || getFieldValue('name', 'Name') || '-',
-                        '电话': app.phone || getFieldValue('phone', 'Phone') || '-',
                         '性别': getFieldValue('gender', 'Gender') || '-',
                         '年龄': getFieldValue('age', 'Age') || '-',
                         '应聘岗位': app.position || getFieldValue('position', 'Position') || '-',
+                        '工种': (() => {
+                            let jobType = getFieldValue('job_type', 'job type', 'Job Type', '工种', '工种类型', '应聘工种', 'jobType', 'job');
+                            if (!jobType) {
+                                for (const key in dynamicFields) {
+                                    const lowerKey = key.toLowerCase();
+                                    if (lowerKey.includes('job') || lowerKey.includes('工种') || lowerKey.includes('type')) {
+                                        if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                            jobType = dynamicFields[key];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            // 如果还是没找到，尝试从 form_data 中查找 "应聘工种" 或 "工种" 字段（中文标签）
+                            if (!jobType) {
+                                for (const key in dynamicFields) {
+                                    if (key.includes('工种') || key === '应聘工种') {
+                                        if (dynamicFields[key] && dynamicFields[key] !== '') {
+                                            jobType = dynamicFields[key];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            return jobType || '-';
+                        })(),
                         '学历': app.education || getFieldValue('education', 'Education') || '-',
-                        '工作经验': app.experience || getFieldValue('experience', 'Experience') || '-',
-                        '婚姻状况': getFieldValue('marital_status', 'marital status', 'Marital Status') || '-',
+                        '电话': app.phone || getFieldValue('phone', 'Phone') || '-',
+                        '婚姻状况': getFieldValue('marital status', 'marital_status', 'Marital Status', '婚姻状况') || '-',
                         '面试日期': app.booking ? app.booking.booking_date : '未预约',
                         '面试时段': app.booking ? (TIME_SLOTS[app.booking.time_slot]?.label || app.booking.time_slot) : '-',
                         '预约状态': app.booking ? (bookingStatusMap[app.booking.status] || app.booking.status) : '未预约',
@@ -1841,6 +2347,108 @@
         function toggleSelectAll(checkbox) {
             const checkboxes = document.querySelectorAll('.row-checkbox');
             checkboxes.forEach(cb => cb.checked = checkbox.checked);
+            updateBatchDeleteButton();
+        }
+        
+        // 更新批量删除按钮状态
+        function updateBatchDeleteButton() {
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+            if (batchDeleteBtn) {
+                batchDeleteBtn.disabled = checkboxes.length === 0;
+                batchDeleteBtn.textContent = `🗑️ 批量删除 (${checkboxes.length})`;
+            }
+        }
+        
+        // 监听单个复选框变化
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('row-checkbox')) {
+                updateBatchDeleteButton();
+                // 更新全选框状态
+                const allCheckboxes = document.querySelectorAll('.row-checkbox');
+                const checkedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+                const selectAllCheckbox = document.getElementById('selectAll');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = checkedCheckboxes.length === allCheckboxes.length && allCheckboxes.length > 0;
+                    selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                }
+            }
+        });
+        
+        // ==================== 批量删除 ====================
+        async function batchDelete() {
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('请先选择要删除的记录');
+                return;
+            }
+            
+            const ids = Array.from(checkboxes).map(cb => cb.value);
+            const names = Array.from(checkboxes).map(cb => {
+                const row = cb.closest('tr');
+                return row ? row.cells[1].textContent : '';
+            });
+            
+            if (!confirm(`确定要删除选中的 ${ids.length} 条应聘记录吗？\n\n此操作不可恢复！`)) {
+                return;
+            }
+            
+            const overlay = document.getElementById('progressOverlay');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressTitle = document.getElementById('progressTitle');
+            
+            progressTitle.textContent = '正在删除数据...';
+            overlay.classList.add('show');
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            
+            let successCount = 0;
+            let failCount = 0;
+            const errors = [];
+            
+            for (let i = 0; i < ids.length; i++) {
+                try {
+                    const id = ids[i];
+                    
+                    // 先删除关联的预约记录
+                    try {
+                        await supabaseClient.from('bookings').delete().eq('application_id', id);
+                    } catch (e) {
+                        console.warn('删除关联预约记录失败:', e);
+                    }
+                    
+                    // 删除申请记录
+                    const { error } = await supabaseClient.from('applications').delete().eq('id', id);
+                    if (error) {
+                        throw error;
+                    }
+                    successCount++;
+                } catch (e) {
+                    failCount++;
+                    errors.push(`${names[i] || ids[i]}: ${e.message}`);
+                    console.error('删除失败:', e);
+                }
+                
+                // 更新进度
+                const progress = Math.round(((i + 1) / ids.length) * 100);
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `${progress}% (${i + 1}/${ids.length})`;
+            }
+            
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                
+                // 刷新数据
+                loadData();
+                
+                // 显示结果
+                if (failCount === 0) {
+                    alert(`删除成功！共删除 ${successCount} 条记录。`);
+                } else {
+                    alert(`删除完成！\n成功: ${successCount} 条\n失败: ${failCount} 条\n\n失败详情:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
+                }
+            }, 500);
         }
         
         // ==================== 调试功能 ====================
@@ -1915,9 +2523,19 @@
         }
         
         // ==================== 页面加载 ====================
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 恢复用户每页显示条数偏好
+            const savedPageSize = localStorage.getItem('applicationsPageSize');
+            if (savedPageSize) {
+                const pageSizeSelector = document.getElementById('pageSizeSelector');
+                if (pageSizeSelector) {
+                    pageSizeSelector.value = savedPageSize;
+                }
+            }
+
             initSupabase();
-            loadData();
+            await loadFilterOptions();
+            await loadData();
             
             // 添加调试快捷键 (Ctrl + Shift + D)
             document.addEventListener('keydown', function(e) {
@@ -1926,13 +2544,49 @@
                     showDebugInfo();
                 }
             });
-        });
-        
-        // 点击弹窗外部关闭
-        document.getElementById('detailModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
+            
+            // 点击弹窗外部关闭
+            document.getElementById('detailModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+            
+            // 表格操作按钮事件委托
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.action-btn');
+                if (!btn) return;
+                
+                const action = btn.dataset.action;
+                const id = btn.dataset.id;
+                const name = btn.dataset.name;
+                
+                console.log('按钮点击:', { action, id, name });
+                
+                if (!action || !id) {
+                    console.log('缺少action或id，不处理');
+                    return;
+                }
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                switch (action) {
+                    case 'view':
+                        console.log('执行查看详情:', id);
+                        viewDetail(id);
+                        break;
+                    case 'process':
+                        updateStatus(id, 'processed');
+                        break;
+                    case 'reject':
+                        updateStatus(id, 'rejected');
+                        break;
+                    case 'delete':
+                        deleteApplication(id, name);
+                        break;
+                }
+            });
         });
     </script>
 </body>

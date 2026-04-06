@@ -437,6 +437,10 @@
 
             <div id="templateGroup" class="template-group" style="display: none;">
                 <h2 id="templateTitle">岗位信息</h2>
+                <div id="fieldsLoadingIndicator" style="display: none; text-align: center; padding: 30px;">
+                    <div class="loading-spinner"></div>
+                    <p style="color: #666; margin-top: 15px;">正在加载表单字段...</p>
+                </div>
                 <div id="dynamicFieldsContainer"></div>
                 
                 <!-- 工作经历卡片式管理 -->
@@ -668,11 +672,28 @@
             var templateGroup = document.getElementById('templateGroup');
             var templateTitle = document.getElementById('templateTitle');
             var container = document.getElementById('dynamicFieldsContainer');
+            var loadingIndicator = document.getElementById('fieldsLoadingIndicator');
+            var submitBtn = document.getElementById('submitBtn');
             
             if (!position) {
                 templateGroup.style.display = 'none';
                 updateProgress();
                 return;
+            }
+            
+            // 显示加载状态
+            templateGroup.style.display = 'block';
+            loadingIndicator.style.display = 'block';
+            container.innerHTML = '';
+            container.style.display = 'none';
+            
+            // 禁用提交按钮
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+            var btnText = document.getElementById('btnText');
+            if (btnText) {
+                btnText.textContent = '正在加载表单...';
             }
             
             // 确定模板ID
@@ -701,7 +722,10 @@
             
             currentFields = fields;
             templateTitle.textContent = position + ' - 信息填写';
-            templateGroup.style.display = 'block';
+            
+            // 隐藏加载指示器，显示表单字段
+            loadingIndicator.style.display = 'none';
+            container.style.display = 'block';
             
             // 准备字段选项
             fieldOptions = {};
@@ -736,6 +760,17 @@
             
             renderDynamicFields(container, fields);
             updateProgress();
+            
+            // 启用提交按钮
+            var submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+            var btnText = document.getElementById('btnText');
+            if (btnText) {
+                btnText.textContent = '提交应聘信息';
+            }
+            
             console.log('字段渲染完成:', fields.length, '个字段');
         }
 
@@ -949,13 +984,35 @@
                 position.closest('.form-group').classList.add('error');
                 isValid = false;
                 if (!firstError) firstError = position;
+                alert('请选择应聘岗位');
+                return false;
             } else {
                 position.closest('.form-group').classList.remove('error');
+            }
+            
+            // 验证表单字段是否已加载
+            if (currentFields.length === 0) {
+                alert('表单字段正在加载中，请稍候...');
+                return false;
+            }
+            
+            // 验证动态字段容器是否有内容
+            var container = document.getElementById('dynamicFieldsContainer');
+            if (!container || container.innerHTML.trim() === '') {
+                alert('表单字段正在加载中，请稍候...');
+                return false;
             }
             
             // 验证动态字段
             currentFields.forEach(function(field) {
                 var fieldGroup = document.querySelector('[data-field-id="' + field.id + '"]');
+                
+                // 如果字段组不存在，跳过验证
+                if (!fieldGroup) {
+                    console.warn('字段组不存在:', field.field_name);
+                    return;
+                }
+                
                 var isFieldValid = false;
                 
                 if (field.field_type === 'radio') {
@@ -1442,8 +1499,10 @@
             var csrfToken = generateCSRFToken();
             
             // 显示加载状态
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('btnText').textContent = '提交中...';
+            var submitBtn = document.getElementById('submitBtn');
+            var btnText = document.getElementById('btnText');
+            if (submitBtn) submitBtn.disabled = true;
+            if (btnText) btnText.textContent = '提交中...';
             showSuccessOverlay('正在提交...', '请稍候，正在保存您的应聘信息');
             
             var savedApplication = null;
@@ -1506,6 +1565,12 @@
                         console.log('姓名字段值 (Name):', formData.fields.Name);
                         console.log('电话字段值 (phone):', formData.fields.phone);
                         console.log('电话字段值 (Phone):', formData.fields.Phone);
+                        // 查找工种相关字段
+                        for (var key in formData.fields) {
+                            if (key.toLowerCase().includes('job') || key.toLowerCase().includes('工种') || key.toLowerCase().includes('type')) {
+                                console.log('工种相关字段:', key, '=', formData.fields[key]);
+                            }
+                        }
                         console.log('最终姓名:', nameValue);
                         console.log('最终电话:', phoneValue);
                         console.log('数据库记录:', dbRecord);
@@ -1623,8 +1688,10 @@
             } else {
                 // 保存失败 - 显示详细错误信息
                 hideSuccessOverlay();
-                document.getElementById('submitBtn').disabled = false;
-                document.getElementById('btnText').textContent = '提交应聘信息';
+                var submitBtn = document.getElementById('submitBtn');
+                var btnText = document.getElementById('btnText');
+                if (submitBtn) submitBtn.disabled = false;
+                if (btnText) btnText.textContent = '提交应聘信息';
                 
                 var errorMsg = '保存失败，请检查网络连接后重试';
                 if (dbError) {

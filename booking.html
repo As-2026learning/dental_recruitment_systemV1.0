@@ -268,6 +268,54 @@
       return y + '-' + m + '-' + day;
     }
 
+    // 检查是否已填写应聘信息
+    function checkApplicationCompleted() {
+      try {
+        // 1. 检查 URL 参数中是否有 application_id
+        var params = new URLSearchParams(window.location.search);
+        var urlApplicationId = params.get('application_id');
+        
+        // 2. 检查 localStorage 中是否有应聘信息
+        var candidateProfile = localStorage.getItem('candidateProfile');
+        var currentApplication = localStorage.getItem('currentApplication');
+        
+        // 3. 检查是否有从应聘页面传递的姓名和电话
+        var urlName = params.get('name');
+        var urlPhone = params.get('phone');
+        
+        // 如果有 application_id 或 candidateProfile，说明已填写应聘信息
+        if (urlApplicationId || candidateProfile || currentApplication || (urlName && urlPhone)) {
+          console.log('✅ 已填写应聘信息');
+          return true;
+        }
+        
+        // 未填写应聘信息，显示提示并跳转
+        console.log('❌ 未填写应聘信息，需要跳转到应聘页面');
+        
+        // 显示提示遮罩
+        var loadingDiv = document.getElementById('loading');
+        loadingDiv.innerHTML = `
+          <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
+            <h2 style="color: #333; margin-bottom: 15px;">请先填写应聘信息</h2>
+            <p style="color: #666; margin-bottom: 25px;">您需要先填写应聘信息后才能预约面试</p>
+            <p style="color: #999; font-size: 14px;">3秒后自动跳转到应聘信息填写页面...</p>
+          </div>
+        `;
+        loadingDiv.classList.remove('hidden');
+        
+        // 3秒后跳转到应聘信息填写页面
+        setTimeout(function() {
+          window.location.href = 'candidate-form-complete.html';
+        }, 3000);
+        
+        return false;
+      } catch (e) {
+        console.error('检查应聘信息状态失败:', e);
+        return true; // 出错时允许继续，避免阻塞正常流程
+      }
+    }
+
     function loadSDK() {
       var cdnList = [
         'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
@@ -291,6 +339,11 @@
 
     async function initApp() {
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      
+      // 检查是否已填写应聘信息
+      if (!checkApplicationCompleted()) {
+        return; // 未填写应聘信息，已显示提示并跳转
+      }
       
       // 加载配置
       await loadConfig();

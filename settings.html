@@ -201,12 +201,15 @@
       <div class="nav-links">
         <a href="admin-standalone.html">← 返回预约管理</a>
         <a href="integrated-applications.html">应聘信息综合管理 →</a>
+        <a href="recruitment-process.html">📋 招聘流程 →</a>
+        <a href="recruitment-dashboard.html">📊 数据看板 →</a>
         <a href="permissions.html">权限管理 →</a>
       </div>
     </div>
     
     <div class="tabs">
       <div class="tab active" onclick="switchTab('positions')">岗位管理</div>
+      <div class="tab" onclick="switchTab('jobtypes')">工种管理</div>
       <div class="tab" onclick="switchTab('timeslots')">时段配置</div>
       <div class="tab" onclick="switchTab('templates')">模板管理</div>
       <div class="tab" onclick="switchTab('tips')">温馨提示</div>
@@ -235,6 +238,28 @@
         </div>
       </div>
       
+      <!-- 工种管理 -->
+      <div id="jobtypes" class="section">
+        <div class="card">
+          <h3>工种列表</h3>
+          <p style="color: #666; margin-bottom: 15px; font-size: 14px;">设置应聘信息筛选中的工种选项</p>
+          <button class="btn btn-primary" onclick="showAddJobTypeModal()">+ 添加工种</button>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>排序</th>
+                <th>工种名称</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="jobTypesList">
+              <tr><td colspan="4" class="loading"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 时段配置 -->
       <div id="timeslots" class="section">
         <div class="card">
@@ -365,6 +390,29 @@
     </div>
   </div>
   
+  <!-- 添加工种模态框 -->
+  <div id="jobTypeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="jobTypeModalTitle">添加工种</h3>
+        <button class="modal-close" onclick="closeJobTypeModal()">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>工种名称</label>
+        <input type="text" id="jobTypeName" placeholder="请输入工种名称，如：上瓷、车瓷">
+      </div>
+      <div class="form-group">
+        <label>排序（数字越小越靠前）</label>
+        <input type="number" id="jobTypeOrder" value="1">
+      </div>
+      <input type="hidden" id="jobTypeId">
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeJobTypeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveJobType()">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 添加时段模态框 -->
   <div id="slotModal" class="modal">
     <div class="modal-content">
@@ -563,6 +611,7 @@
         }
         
         loadPositions();
+        loadJobTypes();
         loadSlots();
         await loadTips();
         await loadTemplates();
@@ -711,6 +760,149 @@
         var result = await db.from('positions').delete().eq('id', id);
         if (result.error) throw result.error;
         loadPositions();
+        alert('删除成功');
+      } catch (e) {
+        alert('删除失败: ' + e.message);
+      }
+    }
+
+    // ===== 工种管理 =====
+    async function loadJobTypes() {
+      var tbody = document.getElementById('jobTypesList');
+      try {
+        // 使用 fetch API 直接查询，绕过缓存
+        var SUPABASE_URL = 'https://dxrghlgmwfwpuxjvyisv.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobGdtd2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MzUwMzAsImV4cCI6MjA1NzUxMTAzMH0.VdL0r7a8j__r5l5-0A5Gj6_9s6z7r7x8y9z0a1b2c3d';
+        
+        var response = await fetch(SUPABASE_URL + '/rest/v1/job_types?select=*&order=sort_order', {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+        
+        var data = await response.json();
+        console.log('查询结果:', data);
+        
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">暂无工种数据</td></tr>';
+          return;
+        }
+        
+        var html = '';
+        for (var i = 0; i < data.length; i++) {
+          var j = data[i];
+          html += '<tr>';
+          html += '<td>' + j.sort_order + '</td>';
+          html += '<td>' + j.name + '</td>';
+          html += '<td>' + (j.is_active ? '<span style="color:#2e7d32;">启用</span>' : '<span style="color:#999;">禁用</span>') + '</td>';
+          html += '<td>';
+          html += '<button class="btn btn-secondary" onclick="editJobType(' + j.id + ', \'' + j.name + '\', ' + j.sort_order + ')">编辑</button> ';
+          html += '<button class="btn btn-danger" onclick="deleteJobType(' + j.id + ')">删除</button>';
+          html += '</td>';
+          html += '</tr>';
+        }
+        tbody.innerHTML = html;
+        return;
+      } catch (e) {
+        console.error('使用 fetch 查询失败，尝试 Supabase 客户端:', e);
+      }
+      
+      // 如果 fetch 失败，尝试使用 Supabase 客户端
+      try {
+        var result = await db.from('job_types').select('*').order('sort_order');
+        console.log('Supabase 查询结果:', result);
+        if (result.error) throw result.error;
+        
+        if (result.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">暂无工种数据</td></tr>';
+          return;
+        }
+        
+        var html = '';
+        for (var i = 0; i < result.data.length; i++) {
+          var j = result.data[i];
+          html += '<tr>';
+          html += '<td>' + j.sort_order + '</td>';
+          html += '<td>' + j.name + '</td>';
+          html += '<td>' + (j.is_active ? '<span style="color:#2e7d32;">启用</span>' : '<span style="color:#999;">禁用</span>') + '</td>';
+          html += '<td>';
+          html += '<button class="btn btn-secondary" onclick="editJobType(' + j.id + ', \'' + j.name + '\', ' + j.sort_order + ')">编辑</button> ';
+          html += '<button class="btn btn-danger" onclick="deleteJobType(' + j.id + ')">删除</button>';
+          html += '</td>';
+          html += '</tr>';
+        }
+        tbody.innerHTML = html;
+      } catch (e) {
+        console.error('加载工种失败:', e);
+        var errorMessage = e.message || '加载失败';
+        var errorDetails = e.details || '';
+        var errorCode = e.code || '';
+        console.log('错误详情:', { message: errorMessage, details: errorDetails, code: errorCode });
+        if (errorMessage.includes('Could not find the table') || errorMessage.includes('does not exist')) {
+          errorMessage = '数据库表结构未初始化，请先运行数据库修复工具<br><small>错误: ' + errorMessage + '</small>';
+        }
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#c62828;">加载失败: ' + errorMessage + '</td></tr>';
+      }
+    }
+
+    function showAddJobTypeModal() {
+      document.getElementById('jobTypeModalTitle').textContent = '添加工种';
+      document.getElementById('jobTypeId').value = '';
+      document.getElementById('jobTypeName').value = '';
+      document.getElementById('jobTypeOrder').value = '1';
+      document.getElementById('jobTypeModal').classList.add('show');
+    }
+
+    function editJobType(id, name, order) {
+      document.getElementById('jobTypeModalTitle').textContent = '编辑工种';
+      document.getElementById('jobTypeId').value = id;
+      document.getElementById('jobTypeName').value = name;
+      document.getElementById('jobTypeOrder').value = order;
+      document.getElementById('jobTypeModal').classList.add('show');
+    }
+
+    function closeJobTypeModal() {
+      document.getElementById('jobTypeModal').classList.remove('show');
+    }
+
+    async function saveJobType() {
+      var id = document.getElementById('jobTypeId').value;
+      var name = document.getElementById('jobTypeName').value.trim();
+      var order = parseInt(document.getElementById('jobTypeOrder').value) || 1;
+      
+      if (!name) {
+        alert('请输入工种名称');
+        return;
+      }
+      
+      try {
+        if (id) {
+          var result = await db.from('job_types').update({ name: name, sort_order: order }).eq('id', id);
+        } else {
+          var result = await db.from('job_types').insert([{ name: name, sort_order: order, is_active: true }]);
+        }
+        if (result.error) throw result.error;
+        closeJobTypeModal();
+        loadJobTypes();
+        alert('保存成功');
+      } catch (e) {
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    async function deleteJobType(id) {
+      if (!confirm('确定要删除这个工种吗？')) return;
+      try {
+        var result = await db.from('job_types').delete().eq('id', id);
+        if (result.error) throw result.error;
+        loadJobTypes();
         alert('删除成功');
       } catch (e) {
         alert('删除失败: ' + e.message);
