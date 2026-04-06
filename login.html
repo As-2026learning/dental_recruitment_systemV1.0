@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>后台登录 - 义齿工厂招聘助手</title>
+    <!-- 【关键】立即清除登录状态，防止微信浏览器自动跳转 -->
+    <script>
+        (function() {
+            // 在页面渲染前立即清除所有登录状态
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('currentUser');
+            console.log('【登录页】已强制清除登录状态');
+        })();
+    </script>
     <style>
         * {
             margin: 0;
