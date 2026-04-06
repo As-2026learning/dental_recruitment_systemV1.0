@@ -596,6 +596,17 @@
     </style>
 </head>
 <body>
+    <!-- 登录检查 - 必须在页面内容加载前执行 -->
+    <script>
+        (function() {
+            const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+            const token = localStorage.getItem('adminToken');
+            if (!isLoggedIn || !token) {
+                window.location.href = 'login.html';
+                return;
+            }
+        })();
+    </script>
     <div class="dashboard-container">
         <!-- 头部 -->
         <div class="dashboard-header">
