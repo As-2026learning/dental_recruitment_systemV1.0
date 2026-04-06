@@ -244,11 +244,35 @@
         function checkAlreadyLoggedIn() {
             const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
             const token = localStorage.getItem('adminToken');
+            const currentUser = localStorage.getItem('currentUser');
 
-            if (isLoggedIn && token) {
-                // 已登录，直接跳转
-                window.location.href = 'integrated-applications.html';
+            // 验证登录状态完整性：必须同时满足三个条件
+            if (isLoggedIn && token && currentUser) {
+                try {
+                    // 验证用户信息格式
+                    const user = JSON.parse(currentUser);
+                    if (user && user.username && user.role) {
+                        // 已登录，直接跳转
+                        window.location.href = 'integrated-applications.html';
+                        return true;
+                    }
+                } catch (e) {
+                    // 用户信息格式错误，清除登录状态
+                    console.log('登录信息格式错误，清除状态');
+                }
             }
+            
+            // 登录状态不完整，强制清除所有状态
+            clearLoginState();
+            return false;
+        }
+
+        // 强制清除登录状态
+        function clearLoginState() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('currentUser');
+            console.log('✅ 登录状态已清除');
         }
 
         // 页面加载时初始化

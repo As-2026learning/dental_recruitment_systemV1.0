@@ -599,10 +599,34 @@
     <!-- 登录检查 - 必须在页面内容加载前执行 -->
     <script>
         (function() {
+            // 严格验证登录状态
             const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
             const token = localStorage.getItem('adminToken');
-            if (!isLoggedIn || !token) {
-                window.location.href = 'login.html';
+            const currentUserStr = localStorage.getItem('currentUser');
+            
+            // 必须同时满足三个条件才算已登录
+            if (!isLoggedIn || !token || !currentUserStr) {
+                // 清除可能不完整的登录状态
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('adminLoggedIn');
+                localStorage.removeItem('currentUser');
+                // 跳转到登录页
+                window.location.replace('login.html');
+                return;
+            }
+            
+            // 验证用户信息格式
+            try {
+                const currentUser = JSON.parse(currentUserStr);
+                if (!currentUser || !currentUser.username || !currentUser.role) {
+                    throw new Error('用户信息不完整');
+                }
+            } catch (e) {
+                // 用户信息格式错误
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('adminLoggedIn');
+                localStorage.removeItem('currentUser');
+                window.location.replace('login.html');
                 return;
             }
         })();
