@@ -277,8 +277,12 @@
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
+            // 【重要】强制清除登录状态，确保每次访问登录页都是未登录状态
+            // 这是为了防止微信浏览器等保留登录状态导致自动跳转
+            clearLoginState();
+            
             initDefaultUsers();
-            checkAlreadyLoggedIn();
+            // 不再自动检查登录状态，强制用户重新登录
         });
     </script>
 </body>
