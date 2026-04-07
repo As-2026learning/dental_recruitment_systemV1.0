@@ -386,7 +386,7 @@ class RecruitmentDataManager {
                             reject_reason: app.first_reject_reason,
                             reject_detail: app.first_reject_detail
                         },
-                        source_status: app.status || 'pending',
+                        source_status: (app.status || 'pending').toString().substring(0, 20),
                         source_channel: sourceChannel || app.source_channel,
                         current_stage: stageInfo.stage,
                         current_status: stageInfo.status,
