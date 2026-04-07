@@ -62,11 +62,21 @@ class RecruitmentDataManager {
 
             console.log(`找到 ${rpDataMap.size} 条已有的招聘流程数据用于合并`);
 
-            // 【修复】同步所有数据，不再过滤已取消、已拒绝的数据
-            // 这样可以确保招聘流程管理显示与应聘信息综合管理相同数量的记录
-            const validApplications = applications;
+            // 【修复】只过滤已取消、已拒绝的数据，保留已确认已处理的数据
+            const validApplications = applications.filter(app => {
+                const appStatus = app.status || '';
+                const isAppCancelled =
+                    appStatus === '已取消' || appStatus === 'cancelled' || appStatus === 'canceled' ||
+                    appStatus === 'cancel' || appStatus === '已撤销' || appStatus === '撤销';
+                const isAppRejected =
+                    appStatus === '已拒绝' || appStatus === 'rejected' || appStatus === 'reject' ||
+                    appStatus === '拒绝' || appStatus === '不通过' || appStatus === '未通过';
+                
+                // 只过滤已取消和已拒绝，保留已确认、已处理等其他状态
+                return !(isAppCancelled || isAppRejected);
+            });
 
-            console.log(`同步所有记录: ${applications.length} 条`);
+            console.log(`原始记录数: ${applications.length}, 有效记录数: ${validApplications.length}, 已过滤记录数: ${applications.length - validApplications.length}`);
 
             // 4. 准备要插入的新记录和要更新的记录
             const newRecords = [];
@@ -698,11 +708,21 @@ class RecruitmentDataManager {
             });
             console.log('========================================');
 
-            // 【修复】加载所有数据，不再过滤已取消、已拒绝的数据
-            // 这样可以确保招聘流程管理显示与应聘信息综合管理相同数量的记录
-            this.allData = rawData;
+            // 【修复】只过滤已取消、已拒绝的数据，保留已确认已处理的数据
+            this.allData = rawData.filter(item => {
+                const sourceStatus = item.source_status || '';
+                const isCancelled =
+                    sourceStatus === '已取消' || sourceStatus === 'cancelled' || sourceStatus === 'canceled' ||
+                    sourceStatus === 'cancel' || sourceStatus === '已撤销' || sourceStatus === '撤销';
+                const isRejected =
+                    sourceStatus === '已拒绝' || sourceStatus === 'rejected' || sourceStatus === 'reject' ||
+                    sourceStatus === '拒绝' || sourceStatus === '不通过' || sourceStatus === '未通过';
+                
+                // 只过滤已取消和已拒绝，保留已确认、已处理等其他状态
+                return !(isCancelled || isRejected);
+            });
             
-            console.log(`loadData - 加载所有记录: ${this.allData.length} 条`);
+            console.log(`loadData - 原始记录数: ${rawData.length}, 有效记录数: ${this.allData.length}, 已过滤记录数: ${rawData.length - this.allData.length}`);
             
             this.filteredData = [...this.allData];
             this.totalCount = this.allData.length;
