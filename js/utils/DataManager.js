@@ -62,24 +62,11 @@ class RecruitmentDataManager {
 
             console.log(`找到 ${rpDataMap.size} 条已有的招聘流程数据用于合并`);
 
-            // 过滤掉已取消、已拒绝的数据（包括应聘取消、拒绝和预约取消）
-            const validApplications = applications.filter(app => {
-                const appStatus = app.status || '';
-                const isAppCancelled =
-                    appStatus === '已取消' || appStatus === 'cancelled' || appStatus === 'canceled' ||
-                    appStatus === 'cancel' || appStatus === '已撤销' || appStatus === '撤销';
-                const isAppRejected =
-                    appStatus === '已拒绝' || appStatus === 'rejected' || appStatus === 'reject' ||
-                    appStatus === '拒绝' || appStatus === '不通过' || appStatus === '未通过';
-                const bookingStatus = bookingStatusMap.get(app.id) || '';
-                const isBookingCancelled =
-                    bookingStatus === '已取消' || bookingStatus === 'cancelled' || bookingStatus === 'canceled' ||
-                    bookingStatus === 'cancel' || bookingStatus === '已撤销' || bookingStatus === '撤销';
+            // 【修复】同步所有数据，不再过滤已取消、已拒绝的数据
+            // 这样可以确保招聘流程管理显示与应聘信息综合管理相同数量的记录
+            const validApplications = applications;
 
-                return !(isAppCancelled || isAppRejected || isBookingCancelled);
-            });
-
-            console.log(`原始记录数: ${applications.length}, 有效记录数: ${validApplications.length}, 已取消记录数: ${applications.length - validApplications.length}`);
+            console.log(`同步所有记录: ${applications.length} 条`);
 
             // 4. 准备要插入的新记录和要更新的记录
             const newRecords = [];
@@ -711,55 +698,11 @@ class RecruitmentDataManager {
             });
             console.log('========================================');
 
-            this.allData = rawData.filter(item => {
-                const sourceStatus = item.source_status || '';
-                const currentStatus = item.current_status || '';
-
-                // 检查各种可能的取消状态（source_status 和 current_status）
-                const isSourceCancelled =
-                    sourceStatus === '已取消' ||
-                    sourceStatus === 'cancelled' ||
-                    sourceStatus === 'canceled' ||
-                    sourceStatus === 'cancel' ||
-                    sourceStatus === '已撤销' ||
-                    sourceStatus === '撤销';
-
-                const isCurrentCancelled =
-                    currentStatus === '已取消' ||
-                    currentStatus === 'cancelled' ||
-                    currentStatus === 'canceled' ||
-                    currentStatus === 'cancel' ||
-                    currentStatus === '已撤销' ||
-                    currentStatus === '撤销';
-
-                // 检查是否被拒绝（注意：current_status 的 reject 是招聘流程中的正常状态，不应过滤）
-                // 只过滤 source_status 为拒绝的数据（应聘信息综合管理模块中已拒绝的数据）
-                const isSourceRejected =
-                    sourceStatus === '已拒绝' ||
-                    sourceStatus === 'rejected' ||
-                    sourceStatus === 'reject' ||
-                    sourceStatus === '拒绝' ||
-                    sourceStatus === '不通过' ||
-                    sourceStatus === '未通过';
-
-                // current_status 的 reject 是招聘流程中的正常状态（如初试不通过、复试不通过），不应过滤
-                const isCurrentRejected = false;
-
-                const shouldFilter = isSourceCancelled || isCurrentCancelled || isSourceRejected || isCurrentRejected;
-
-                if (shouldFilter) {
-                    const reason = [];
-                    if (isSourceCancelled) reason.push('source已取消');
-                    if (isCurrentCancelled) reason.push('current已取消');
-                    if (isSourceRejected) reason.push('source已拒绝');
-                    if (isCurrentRejected) reason.push('current已拒绝');
-                    console.log(`loadData - 过滤记录: ${item.name} (ID: ${item.id}), source_status: "${sourceStatus}", current_status: "${currentStatus}", 原因: ${reason.join(', ')}`);
-                }
-
-                return !shouldFilter;
-            });
+            // 【修复】加载所有数据，不再过滤已取消、已拒绝的数据
+            // 这样可以确保招聘流程管理显示与应聘信息综合管理相同数量的记录
+            this.allData = rawData;
             
-            console.log(`loadData - 原始记录数: ${rawData.length}, 过滤后记录数: ${this.allData.length}, 已取消记录数: ${rawData.length - this.allData.length}`);
+            console.log(`loadData - 加载所有记录: ${this.allData.length} 条`);
             
             this.filteredData = [...this.allData];
             this.totalCount = this.allData.length;
