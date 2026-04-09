@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>应聘信息综合管理 - 义齿工厂招聘系统</title>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
@@ -80,6 +80,20 @@
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        
+        .stat-card.clickable {
+            cursor: pointer;
+        }
+        
+        .stat-card.clickable:hover {
+            background: #f0f5ff;
+            border: 1px solid #1890ff;
+        }
+        
+        .stat-card.active {
+            background: #e6f7ff;
+            border: 2px solid #1890ff;
         }
         
         .stat-value {
@@ -753,25 +767,25 @@
 
     <!-- 统计卡片 -->
     <div class="stats-container">
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="filterByStatCard('all')" data-filter="all">
             <div class="stat-value" id="totalApplications">0</div>
             <div class="stat-label">总应聘数</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="filterByStatCard('pending')" data-filter="pending">
             <div class="stat-value" id="pendingApplications">0</div>
             <div class="stat-label">待处理</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value" id="totalBookings">0</div>
-            <div class="stat-label">已预约面试</div>
+        <div class="stat-card clickable" onclick="filterByStatCard('not_attended')" data-filter="not_attended">
+            <div class="stat-value" id="notAttendedCount">0</div>
+            <div class="stat-label">失约</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="filterByStatCard('today')" data-filter="today">
             <div class="stat-value" id="todayBookings">0</div>
             <div class="stat-label">今日面试</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="filterByStatCard('confirmed')" data-filter="confirmed">
             <div class="stat-value" id="confirmedBookings">0</div>
-            <div class="stat-label">已确认面试</div>
+            <div class="stat-label">已面试</div>
         </div>
     </div>
 
@@ -797,8 +811,8 @@
                     <select id="filterStatus">
                         <option value="">全部状态</option>
                         <option value="pending">待处理</option>
-                        <option value="processed">已处理</option>
-                        <option value="rejected">已拒绝</option>
+                        <option value="processed">已面试</option>
+                        <option value="rejected">失约</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -813,7 +827,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>面试日期:</label>
+                    <label>申请日期:</label>
                     <input type="date" id="filterBookingDate">
                 </div>
             </div>
@@ -823,7 +837,7 @@
                     <input type="text" id="filterSearch" placeholder="姓名、电话、岗位...">
                 </div>
                 <div class="filter-group">
-                    <label>申请时间:</label>
+                    <label>面试日期:</label>
                     <input type="date" id="filterStartDate">
                     <span>至</span>
                     <input type="date" id="filterEndDate">
@@ -916,20 +930,20 @@
     <script src="auth.js"></script>
 
     <script>
-        // ==================== 登录检查 ====================
+        // ==================== 登录检查（支持 Supabase Auth）====================
         (function() {
-            // 严格验证登录状态
+            // 检查本地存储的登录状态
             const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
             const token = localStorage.getItem('adminToken');
             const currentUserStr = localStorage.getItem('currentUser');
             
-            // 必须同时满足三个条件才算已登录
+            // 必须同时满足条件才算已登录
             if (!isLoggedIn || !token || !currentUserStr) {
                 // 清除可能不完整的登录状态
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                window.location.replace('login-new.html');
                 return;
             }
             
@@ -944,21 +958,30 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                window.location.replace('login-new.html');
                 return;
             }
         })();
 
-        // ==================== 退出登录 ====================
-        function logout() {
+        // ==================== 退出登录（支持 Supabase Auth）====================
+        async function logout() {
             if (confirm('确定要退出登录吗？')) {
-                // 清除登录状态
+                try {
+                    // 尝试退出 Supabase Auth（如果可用）
+                    if (typeof supabaseClient !== 'undefined' && supabaseClient.auth) {
+                        await supabaseClient.auth.signOut();
+                    }
+                } catch (e) {
+                    console.log('Supabase 退出登录:', e);
+                }
+                
+                // 清除本地登录状态
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
                 
                 // 跳转到登录页面
-                window.location.href = 'login.html';
+                window.location.href = 'login-new.html';
             }
         }
 
@@ -1004,12 +1027,53 @@
                     console.log('✅ Supabase 客户端初始化成功');
                     return true;
                 } else {
-                    console.warn('⚠️ window.supabase 未加载');
+                    console.warn('⚠️ window.supabase 未加载，尝试备用加载方式');
+                    // 尝试备用 CDN 加载
+                    loadSupabaseBackup();
                     return false;
                 }
             } catch (e) {
                 console.error('❌ Supabase 初始化失败:', e);
                 return false;
+            }
+        }
+        
+        // 备用 Supabase 加载
+        function loadSupabaseBackup() {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+            script.onload = function() {
+                console.log('✅ 备用 CDN 加载成功');
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    console.log('✅ Supabase 客户端初始化成功（备用）');
+                    // 重新加载数据
+                    loadData();
+                }
+            };
+            script.onerror = function() {
+                console.error('❌ 备用 CDN 也加载失败');
+                showLoadError('Supabase SDK 加载失败，请检查网络连接');
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 显示加载错误
+        function showLoadError(message) {
+            const container = document.getElementById('tableContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>${message}</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            请检查网络连接或刷新页面重试
+                        </p>
+                        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 15px;">
+                            刷新页面
+                        </button>
+                    </div>
+                `;
             }
         }
         
@@ -1104,8 +1168,10 @@
                             console.log('dynamic_fields:', dbApplications[0].dynamic_fields);
                         }
                     } else if (result.error) {
-                        console.warn('⚠️ 数据库查询错误:', result.error.message);
+                        console.warn('⚠️ 数据库查询错误:', result.error.message, result.error);
                         dbError = result.error;
+                    } else {
+                        console.log('ℹ️ 查询结果:', result);
                     }
                 } catch (e) {
                     console.warn('⚠️ 数据库加载失败:', e.message);
@@ -1148,13 +1214,22 @@
                     const position = app.position || getFieldValue('position', 'Position') || '';
                     
                     // 通过 application_id 或电话关联预约
-                    const bookings = allBookings.filter(b => 
+                    let bookings = allBookings.filter(b => 
                         b.application_id === app.id || (phone && b.phone === phone)
                     );
                     
-                    const booking = bookings.length > 0 
-                        ? bookings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
-                        : null;
+                    // 优先选择未取消的预约，按创建时间倒序
+                    let booking = null;
+                    if (bookings.length > 0) {
+                        // 先尝试找未取消的预约
+                        const activeBookings = bookings.filter(b => b.status !== 'cancelled');
+                        if (activeBookings.length > 0) {
+                            booking = activeBookings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                        } else {
+                            // 如果没有未取消的，才使用已取消的（用于历史记录展示）
+                            booking = bookings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                        }
+                    }
                     
                     return {
                         ...app,
@@ -1217,15 +1292,149 @@
         function updateStats() {
             const today = new Date().toISOString().split('T')[0];
             
+            // 辅助函数：获取应聘状态（支持多种数据源）
+            function getAppStatus(app) {
+                // 优先使用 app.status
+                if (app.status && app.status !== '') {
+                    return app.status;
+                }
+                // 从 dynamic_fields 中查找
+                const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
+                const statusFields = ['status', '应聘状态', '申请状态', 'state'];
+                for (const field of statusFields) {
+                    if (dynamicFields[field] && dynamicFields[field] !== '') {
+                        return dynamicFields[field];
+                    }
+                }
+                // 默认为 pending
+                return 'pending';
+            }
+            
+            // 调试：输出前5条记录的状态信息
+            console.log('=== 统计数据调试 ===');
+            console.log('总记录数:', allApplications.length);
+            if (allApplications.length > 0) {
+                console.log('前3条记录的状态:');
+                allApplications.slice(0, 3).forEach((app, i) => {
+                    console.log(`  记录${i+1}:`, {
+                        id: app.id,
+                        name: app.name,
+                        status: app.status,
+                        dynamicStatus: (app.dynamic_fields || app.form_data || {})['status'],
+                        computedStatus: getAppStatus(app)
+                    });
+                });
+            }
+            
+            // 统计各状态数量
+            const statusCounts = {};
+            allApplications.forEach(app => {
+                const status = getAppStatus(app);
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+            });
+            console.log('各状态统计:', statusCounts);
+            
             document.getElementById('totalApplications').textContent = allApplications.length;
             document.getElementById('pendingApplications').textContent = 
-                allApplications.filter(a => a.status === 'pending').length;
-            document.getElementById('totalBookings').textContent = 
-                allApplications.filter(a => a.booking).length;
-            document.getElementById('todayBookings').textContent = 
-                allApplications.filter(a => a.booking && a.booking.booking_date === today).length;
-            document.getElementById('confirmedBookings').textContent = 
-                allApplications.filter(a => a.booking && a.booking.status === 'confirmed').length;
+                allApplications.filter(a => getAppStatus(a) === 'pending').length;
+            document.getElementById('notAttendedCount').textContent = 
+                allApplications.filter(a => getAppStatus(a) === 'rejected').length;
+            // 今日面试：预约日期为今天，且预约状态不是已取消，且应聘状态不是已拒绝
+            const todayBookings = allApplications.filter(a => 
+                a.booking && 
+                a.booking.booking_date === today && 
+                a.booking.status !== 'cancelled' &&
+                getAppStatus(a) !== 'rejected'
+            );
+            document.getElementById('todayBookings').textContent = todayBookings.length;
+            console.log(`今日面试统计: ${todayBookings.length} 条, 日期: ${today}`);
+            
+            // 已确认面试：预约状态为 confirmed，且应聘状态为已处理（processed）
+            // 只有应聘状态为已处理的人才算真正确认参加面试
+            const confirmedBookings = allApplications.filter(a => 
+                a.booking && 
+                a.booking.status === 'confirmed' && 
+                getAppStatus(a) === 'processed'
+            );
+            document.getElementById('confirmedBookings').textContent = confirmedBookings.length;
+            console.log(`已确认面试统计: ${confirmedBookings.length} 条`);
+        }
+        
+        // ==================== 统计卡片筛选功能 ====================
+        let currentStatCardFilter = null;
+        
+        function filterByStatCard(filterType) {
+            // 更新卡片激活状态
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // 如果点击的是当前激活的卡片，则取消筛选
+            if (currentStatCardFilter === filterType) {
+                currentStatCardFilter = null;
+                // 重置所有筛选条件
+                resetFilters();
+                return;
+            }
+            
+            // 激活当前点击的卡片
+            const activeCard = document.querySelector(`.stat-card[data-filter="${filterType}"]`);
+            if (activeCard) {
+                activeCard.classList.add('active');
+            }
+            
+            currentStatCardFilter = filterType;
+            
+            // 先重置所有筛选条件，避免残留条件干扰
+            document.getElementById('filterPosition').value = '';
+            document.getElementById('filterJobType').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterBookingStatus').value = '';
+            document.getElementById('filterBookingDate').value = '';
+            document.getElementById('filterSearch').value = '';
+            document.getElementById('filterStartDate').value = '';
+            document.getElementById('filterEndDate').value = '';
+            
+            // 根据筛选类型设置筛选条件
+            const today = new Date().toISOString().split('T')[0];
+            
+            switch(filterType) {
+                case 'all':
+                    // 显示全部，已经重置过了，直接应用筛选
+                    break;
+                case 'pending':
+                    // 待处理：应聘状态为 pending
+                    document.getElementById('filterStatus').value = 'pending';
+                    break;
+                case 'not_attended':
+                    // 未参加面试：应聘状态为已拒绝
+                    document.getElementById('filterStatus').value = 'rejected';
+                    break;
+                case 'today':
+                    // 今日面试：预约日期为今天，且预约状态不是已取消，且应聘状态为已处理
+                    document.getElementById('filterBookingDate').value = today;
+                    document.getElementById('filterBookingStatus').value = 'has_booking';
+                    document.getElementById('filterStatus').value = 'processed';
+                    break;
+                case 'confirmed':
+                    // 已确认面试：预约状态为 confirmed，且应聘状态为已处理
+                    document.getElementById('filterStatus').value = 'processed';
+                    document.getElementById('filterBookingStatus').value = 'confirmed';
+                    break;
+            }
+            
+            // 应用筛选
+            applyFilters();
+            
+            // 显示提示
+            const filterNames = {
+                'all': '全部应聘',
+                'pending': '待处理',
+                'not_attended': '失约',
+                'today': '今日面试',
+                'confirmed': '已面试'
+            };
+            console.log(`已筛选: ${filterNames[filterType]}`);
         }
         
         // ==================== 筛选功能 ====================
@@ -1238,6 +1447,21 @@
             const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
             const startDate = document.getElementById('filterStartDate').value;
             const endDate = document.getElementById('filterEndDate').value;
+            
+            // 辅助函数：获取应聘状态（与 updateStats 中保持一致）
+            function getAppStatus(app) {
+                if (app.status && app.status !== '') {
+                    return app.status;
+                }
+                const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
+                const statusFields = ['status', '应聘状态', '申请状态', 'state'];
+                for (const field of statusFields) {
+                    if (dynamicFields[field] && dynamicFields[field] !== '') {
+                        return dynamicFields[field];
+                    }
+                }
+                return 'pending';
+            }
             
             filteredApplications = allApplications.filter(app => {
                 const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
@@ -1273,24 +1497,43 @@
                     if (jobType !== jobTypeFilter) return false;
                 }
                 
-                // 应聘状态筛选
-                if (statusFilter && app.status !== statusFilter) return false;
+                // 应聘状态筛选（使用统一的 getAppStatus 函数）
+                if (statusFilter && getAppStatus(app) !== statusFilter) return false;
                 
                 // 预约状态筛选
                 if (bookingStatusFilter) {
-                    if (bookingStatusFilter === 'has_booking' && !app.booking) return false;
+                    if (bookingStatusFilter === 'has_booking') {
+                        if (!app.booking) return false;
+                        // has_booking 时排除已取消的预约
+                        if (app.booking.status === 'cancelled') return false;
+                        // has_booking 时排除已拒绝的应聘者
+                        if (getAppStatus(app) === 'rejected') return false;
+                    }
                     if (bookingStatusFilter === 'no_booking' && app.booking) return false;
                     if (['pending', 'confirmed', 'cancelled'].includes(bookingStatusFilter)) {
                         if (!app.booking || app.booking.status !== bookingStatusFilter) return false;
                     }
+                    // 已确认面试的筛选需要排除已拒绝的应聘者
+                    if (bookingStatusFilter === 'confirmed') {
+                        if (getAppStatus(app) === 'rejected') return false;
+                    }
                 }
                 
-                // 面试日期筛选
+                // 申请日期筛选（原面试日期）
                 if (bookingDateFilter && app.booking) {
                     if (app.booking.booking_date !== bookingDateFilter) return false;
+                    // 今日面试筛选时，排除已取消和已拒绝的记录
+                    if (app.booking.status === 'cancelled') return false;
+                    if (getAppStatus(app) === 'rejected') return false;
                 }
-                
-                // 申请时间范围筛选
+
+                // 如果没有预约状态筛选，但有申请日期筛选，也需要排除已取消和已拒绝的
+                if (bookingDateFilter && !bookingStatusFilter && app.booking) {
+                    if (app.booking.status === 'cancelled') return false;
+                    if (getAppStatus(app) === 'rejected') return false;
+                }
+
+                // 面试日期范围筛选（原申请时间）
                 if (startDate) {
                     const appDate = new Date(app.created_at);
                     if (appDate < new Date(startDate)) return false;
@@ -1415,7 +1658,8 @@
             document.getElementById('totalRecords').textContent = filteredApplications.length;
             document.getElementById('currentRange').textContent = `显示第 ${start + 1}-${end} 条`;
             
-            const statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
+            // 【优化】修改状态显示文本：已处理→已面试，已拒绝→失约
+            const statusMap = { 'pending': '待处理', 'processed': '已面试', 'rejected': '失约' };
             const bookingStatusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
             
             let html = `
@@ -1434,14 +1678,14 @@
                             <th>工种</th>
                             <th>学历</th>
                             <th>电话</th>
-                            <th onclick="toggleSort('booking_date')">
-                                面试日期 <span class="sort-icon">${sortField === 'booking_date' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
+                            <th onclick="toggleSort('created_at')">
+                                面试日期 <span class="sort-icon">${sortField === 'created_at' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
                             </th>
                             <th>面试时段</th>
                             <th>预约状态</th>
                             <th>应聘状态</th>
-                            <th onclick="toggleSort('created_at')">
-                                申请时间 <span class="sort-icon">${sortField === 'created_at' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
+                            <th onclick="toggleSort('booking_date')">
+                                申请日期 <span class="sort-icon">${sortField === 'booking_date' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}</span>
                             </th>
                             <th>操作</th>
                         </tr>
@@ -1529,11 +1773,11 @@
                         <td>${jobType}</td>
                         <td>${education}</td>
                         <td>${app.phone || '-'}</td>
-                        <td>${bookingDate}</td>
+                        <td>${new Date(app.created_at).toLocaleString('zh-CN')}</td>
                         <td>${bookingSlot}</td>
                         <td><span class="status-tag ${bookingStatusClass}">${bookingStatus}</span></td>
                         <td><span class="status-tag status-${app.status}">${statusMap[app.status] || '待处理'}</span></td>
-                        <td>${new Date(app.created_at).toLocaleString('zh-CN')}</td>
+                        <td>${bookingDate}</td>
                         <td>
                             <div class="action-btns">
                                 <button type="button" class="action-btn action-btn-view" data-action="view" data-id="${app.id}">查看</button>
@@ -1837,7 +2081,7 @@
                         <h3>📅 面试预约</h3>
                         <div class="detail-grid">
                             <div class="detail-item">
-                                <label>预约日期</label>
+                                <label>申请日期</label>
                                 <span>${app.booking.booking_date || '-'}</span>
                             </div>
                             <div class="detail-item">
@@ -2197,17 +2441,31 @@
         
         // ==================== 删除 ====================
         async function deleteApplication(id, name) {
-            if (!confirm(`确定要删除应聘人 "${name}" 的申请记录吗？\n\n此操作不可恢复！`)) return;
+            if (!confirm(`确定要删除应聘人 "${name}" 的申请记录吗？\n\n此操作将同时删除关联的预约记录和招聘流程数据，且不可恢复！`)) return;
             
             try {
-                // 先删除关联的预约记录
+                // 记录操作日志
+                await logOperation('delete', 'applications', id, `删除应聘记录: ${name}`, { name });
+                
+                // 1. 先删除关联的招聘流程记录
+                const { error: rpError } = await supabaseClient.from('recruitment_process').delete().eq('application_id', id);
+                if (rpError) {
+                    console.warn('删除关联招聘流程记录失败:', rpError);
+                    // 继续删除其他记录，不阻止流程
+                } else {
+                    console.log('成功删除关联的招聘流程记录');
+                }
+                
+                // 2. 删除关联的预约记录
                 const { error: bookingError } = await supabaseClient.from('bookings').delete().eq('application_id', id);
                 if (bookingError) {
                     console.warn('删除关联预约记录失败:', bookingError);
                     // 继续删除申请记录，不阻止流程
+                } else {
+                    console.log('成功删除关联的预约记录');
                 }
                 
-                // 删除申请记录
+                // 3. 删除申请记录
                 const { error } = await supabaseClient.from('applications').delete().eq('id', id);
                 if (error) {
                     throw error;
@@ -2215,7 +2473,7 @@
                 
                 // 刷新数据
                 await loadData();
-                alert('删除成功！');
+                alert('删除成功！已同步删除关联的预约和招聘流程数据。');
             } catch (e) {
                 console.error('删除失败:', e);
                 alert('删除失败: ' + (e.message || '未知错误'));
@@ -2309,11 +2567,11 @@
                         '学历': app.education || getFieldValue('education', 'Education') || '-',
                         '电话': app.phone || getFieldValue('phone', 'Phone') || '-',
                         '婚姻状况': getFieldValue('marital status', 'marital_status', 'Marital Status', '婚姻状况') || '-',
-                        '面试日期': app.booking ? app.booking.booking_date : '未预约',
+                        '申请日期': app.booking ? app.booking.booking_date : '未预约',
                         '面试时段': app.booking ? (TIME_SLOTS[app.booking.time_slot]?.label || app.booking.time_slot) : '-',
                         '预约状态': app.booking ? (bookingStatusMap[app.booking.status] || app.booking.status) : '未预约',
                         '应聘状态': statusMap[app.status] || '待处理',
-                        '申请时间': new Date(app.created_at).toLocaleString('zh-CN')
+                        '面试日期': new Date(app.created_at).toLocaleString('zh-CN')
                     };
                     
                     // 添加其他动态字段
@@ -2433,15 +2691,26 @@
             for (let i = 0; i < ids.length; i++) {
                 try {
                     const id = ids[i];
+                    const name = names[i] || '';
                     
-                    // 先删除关联的预约记录
+                    // 记录操作日志
+                    await logOperation('batch_delete', 'applications', id, `批量删除应聘记录: ${name}`, { name, batchIndex: i + 1, batchTotal: ids.length });
+                    
+                    // 1. 先删除关联的招聘流程记录
+                    try {
+                        await supabaseClient.from('recruitment_process').delete().eq('application_id', id);
+                    } catch (e) {
+                        console.warn('删除关联招聘流程记录失败:', e);
+                    }
+                    
+                    // 2. 删除关联的预约记录
                     try {
                         await supabaseClient.from('bookings').delete().eq('application_id', id);
                     } catch (e) {
                         console.warn('删除关联预约记录失败:', e);
                     }
                     
-                    // 删除申请记录
+                    // 3. 删除申请记录
                     const { error } = await supabaseClient.from('applications').delete().eq('id', id);
                     if (error) {
                         throw error;
@@ -2472,6 +2741,43 @@
                     alert(`删除完成！\n成功: ${successCount} 条\n失败: ${failCount} 条\n\n失败详情:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
                 }
             }, 500);
+        }
+        
+        // ==================== 操作日志记录 ====================
+        async function logOperation(operationType, tableName, recordId, description, details = {}) {
+            try {
+                // 获取当前用户信息
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const userName = currentUser.username || currentUser.name || '未知用户';
+                
+                const logEntry = {
+                    operation_type: operationType,
+                    table_name: tableName,
+                    record_id: String(recordId),
+                    description: description,
+                    details: details,
+                    operator: userName,
+                    operation_time: new Date().toISOString(),
+                    user_agent: navigator.userAgent,
+                    ip_address: 'client-side' // 服务端可以获取真实IP
+                };
+                
+                // 尝试写入操作日志表（如果存在）
+                try {
+                    const { error } = await supabaseClient.from('operation_logs').insert(logEntry);
+                    if (error) {
+                        // 如果表不存在或其他错误，仅记录到控制台
+                        console.log('操作日志:', logEntry);
+                    } else {
+                        console.log('✅ 操作日志已记录:', description);
+                    }
+                } catch (e) {
+                    // 表可能不存在，记录到控制台
+                    console.log('操作日志:', logEntry);
+                }
+            } catch (e) {
+                console.error('记录操作日志失败:', e);
+            }
         }
         
         // ==================== 调试功能 ====================

@@ -99,6 +99,32 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .status-query-banner {
+      background: linear-gradient(135deg, #f6ffed 0%, #f0f5ff 100%);
+      border: 2px solid #95de64;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .status-query-banner h3 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .status-query-banner p {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
     .btn-cancel-disabled {
       background: #95a5a6;
       color: white;
@@ -193,7 +219,7 @@
       </div>
       
       <h2>恭喜！您的面试预约已提交成功</h2>
-      <p class="subtitle">请妥善保存以下预约信息，按时参加面试</p>
+      <p class="subtitle">请及时查阅面试预约状态</p>
       
       <div id="bookingDetails">
         <div style="text-align: center; padding: 40px;">加载中...</div>
@@ -208,8 +234,14 @@
       
       <div id="cancelSection"></div>
       
-      <button class="btn" onclick="saveAsImage()">保存为图片</button>
-      <a href="booking.html" class="btn">返回首页</a>
+      <!-- 状态查询引导 -->
+      <div class="status-query-banner">
+        <h3>🔍 查询面试预约状态</h3>
+        <a href="#" id="statusQueryLink" class="btn btn-primary">立即查询</a>
+      </div>
+      
+      <a href="index.html" class="btn">返回首页</a>
+      <a href="status-query.html" class="btn btn-primary">查询预约状态</a>
     </div>
   </div>
 
@@ -446,6 +478,9 @@
       var container = document.getElementById('bookingDetails');
       currentBooking = b;
       
+      // 更新查询状态链接，携带预约信息
+      updateStatusQueryLink(b);
+      
       // 查找时段标签
       var slotLabel = b.time_slot;
       for (var i = 0; i < timeSlots.length; i++) {
@@ -481,6 +516,16 @@
       
       // 显示取消预约按钮（仅当预约状态不是已取消时）
       renderCancelButton(b);
+    }
+    
+    // 更新查询状态链接
+    function updateStatusQueryLink(booking) {
+      var link = document.getElementById('statusQueryLink');
+      if (link && booking) {
+        var url = 'status-query.html?name=' + encodeURIComponent(booking.name) + 
+                  '&phone=' + encodeURIComponent(booking.phone);
+        link.href = url;
+      }
     }
     
     // 渲染取消预约按钮

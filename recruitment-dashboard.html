@@ -4,12 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>招聘流程数据看板 - 义齿工厂招聘系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="js/config.js"></script>
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    
+    <!-- 预加载关键CSS -->
+    <link rel="preload" href="css/recruitment-process.css" as="style">
     <link rel="stylesheet" href="css/recruitment-process.css">
+    
+    <!-- 同步加载关键JS库（提高加载速度） -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- 本地配置同步加载 -->
+    <script src="js/config.js"></script>
     <style>
         /* 看板专用样式 */
         .dashboard-container {
@@ -579,6 +590,47 @@
             to { transform: rotate(360deg); }
         }
 
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #1890ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+
+        .btn-success {
+            background: #52c41a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #73d13d;
+        }
+
+        .btn-info {
+            background: #1890ff;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #40a9ff;
+        }
+
         /* 响应式 */
         @media (max-width: 768px) {
             .charts-grid {
@@ -611,7 +663,7 @@
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
                 // 跳转到登录页
-                window.location.replace('login.html');
+                window.location.replace('login-new.html');
                 return;
             }
             
@@ -626,7 +678,7 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                window.location.replace('login-new.html');
                 return;
             }
         })();
@@ -635,7 +687,6 @@
         <!-- 头部 -->
         <div class="dashboard-header">
             <h1>📊 招聘流程数据看板</h1>
-            <p>实时监控招聘全流程数据，洞察人才获取趋势</p>
         </div>
 
         <!-- 导航 -->
@@ -855,9 +906,15 @@
             </div>
 
             <!-- 操作按钮 -->
-            <div class="action-buttons" style="margin-top: 24px; text-align: center;">
+            <div class="action-buttons" style="margin-top: 24px; text-align: center; display: flex; gap: 12px; justify-content: center;">
+                <button class="btn btn-primary" id="refreshData" onclick="manualRefresh()">
+                    🔄 刷新数据
+                </button>
                 <button class="btn btn-success" id="exportData">
                     📊 导出数据
+                </button>
+                <button class="btn btn-info" id="toggleRealtime" onclick="toggleRealtimeUpdate()">
+                    ⏱️ 实时更新: 开启
                 </button>
             </div>
         </div>
@@ -877,7 +934,7 @@
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('userRole');
                 // 跳转到登录页
-                window.location.href = 'login.html';
+                window.location.href = 'login-new.html';
             }
         }
     </script>

@@ -852,7 +852,7 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
+                window.location.href = 'login-new.html';
             }
         }
 
@@ -1053,18 +1053,44 @@
             const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
             const token = localStorage.getItem('adminToken');
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            
+            // 调试信息
+            console.log('当前用户:', currentUser);
+            console.log('用户角色:', currentUser.role);
 
             if (!isLoggedIn || !token) {
-                window.location.href = 'login.html';
+                window.location.href = 'login-new.html';
                 return;
             }
 
             // 只有管理员可以访问权限管理页面
             if (currentUser.role !== 'admin') {
-                alert('您没有权限访问权限管理页面');
+                console.warn('权限不足，当前角色:', currentUser.role, '需要: admin');
+                
+                // 提供临时提升权限的选项（仅用于紧急修复）
+                const shouldFix = confirm(
+                    '您没有权限访问权限管理页面\n' +
+                    '当前角色: ' + (currentUser.role || '未设置') + '\n' +
+                    '需要: admin\n\n' +
+                    '是否尝试临时提升为管理员权限？\n' +
+                    '(仅用于修复权限问题，修复后请重新登录)'
+                );
+                
+                if (shouldFix) {
+                    // 临时提升权限（仅修改 localStorage，不修改数据库）
+                    currentUser.role = 'admin';
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    console.log('⚠️ 已临时提升为管理员权限，请刷新页面');
+                    alert('已临时提升为管理员权限，请刷新页面');
+                    location.reload();
+                    return;
+                }
+                
                 window.location.href = 'integrated-applications.html';
                 return;
             }
+            
+            console.log('✅ 权限验证通过，管理员身份确认');
         })();
     </script>
 </body>

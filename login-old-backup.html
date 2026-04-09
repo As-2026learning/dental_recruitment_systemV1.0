@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台登录 - 义齿工厂招聘助手</title>
+    <!-- 【关键】立即清除登录状态，防止微信浏览器自动跳转 -->
+    <script>
+        (function() {
+            // 在页面渲染前立即清除所有登录状态
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('currentUser');
+            console.log('【登录页】已强制清除登录状态');
+        })();
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .login-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🔐 后台管理系统</h1>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="btn-login" id="loginBtn">
+                登录
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <a href="candidate-form-complete.html">← 返回应聘页面</a>
+        </div>
+    </div>
+
+    <script>
+        // 默认用户数据（首次使用时的默认账号）
+        const DEFAULT_USERS = [
+            {
+                username: 'admin',
+                password: 'admin123',
+                name: '系统管理员',
+                role: 'admin',
+                status: 'active'
+            },
+            {
+                username: 'operator',
+                password: 'operator123',
+                name: '操作员',
+                role: 'operator',
+                status: 'active'
+            }
+        ];
+
+        // 初始化默认用户
+        function initDefaultUsers() {
+            const existingUsers = localStorage.getItem('adminUsers');
+            if (!existingUsers) {
+                localStorage.setItem('adminUsers', JSON.stringify(DEFAULT_USERS));
+                console.log('✅ 默认用户已初始化');
+            }
+        }
+
+        // 登录表单提交
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // 显示加载状态
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading"></span>登录中...';
+            errorMessage.classList.remove('show');
+
+            // 模拟登录延迟
+            setTimeout(() => {
+                // 获取用户列表
+                const users = JSON.parse(localStorage.getItem('adminUsers') || '[]');
+
+                // 查找用户
+                const user = users.find(u => u.username === username && u.password === password);
+
+                if (user) {
+                    if (user.status === 'disabled') {
+                        errorMessage.textContent = '账号已被禁用，请联系管理员';
+                        errorMessage.classList.add('show');
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = '登录';
+                        return;
+                    }
+
+                    // 登录成功
+                    const token = generateToken(user);
+                    localStorage.setItem('adminToken', token);
+                    localStorage.setItem('adminLoggedIn', 'true');
+                    localStorage.setItem('currentUser', JSON.stringify({
+                        username: user.username,
+                        name: user.name,
+                        role: user.role
+                    }));
+
+                    // 跳转到后台首页
+                    window.location.href = 'integrated-applications.html';
+                } else {
+                    errorMessage.textContent = '用户名或密码错误';
+                    errorMessage.classList.add('show');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '登录';
+                }
+            }, 500);
+        });
+
+        // 生成登录令牌
+        function generateToken(user) {
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2);
+            return btoa(`${user.username}:${timestamp}:${random}`);
+        }
+
+        // 检查是否已登录
+        function checkAlreadyLoggedIn() {
+            const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+            const token = localStorage.getItem('adminToken');
+            const currentUser = localStorage.getItem('currentUser');
+
+            // 验证登录状态完整性：必须同时满足三个条件
+            if (isLoggedIn && token && currentUser) {
+                try {
+                    // 验证用户信息格式
+                    const user = JSON.parse(currentUser);
+                    if (user && user.username && user.role) {
+                        // 已登录，直接跳转
+                        window.location.href = 'integrated-applications.html';
+                        return true;
+                    }
+                } catch (e) {
+                    // 用户信息格式错误，清除登录状态
+                    console.log('登录信息格式错误，清除状态');
+                }
+            }
+            
+            // 登录状态不完整，强制清除所有状态
+            clearLoginState();
+            return false;
+        }
+
+        // 强制清除登录状态
+        function clearLoginState() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('currentUser');
+            console.log('✅ 登录状态已清除');
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 【重要】强制清除登录状态，确保每次访问登录页都是未登录状态
+            // 这是为了防止微信浏览器等保留登录状态导致自动跳转
+            clearLoginState();
+            
+            initDefaultUsers();
+            // 不再自动检查登录状态，强制用户重新登录
+        });
+    </script>
+</body>
+</html>

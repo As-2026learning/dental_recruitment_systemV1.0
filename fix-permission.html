@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>权限修复工具 - 义齿工厂招聘助手</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .result.success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+            display: block;
+        }
+        .result.error {
+            background: #fff1f0;
+            border: 1px solid #ffa39e;
+            color: #ff4d4f;
+            display: block;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 权限修复工具</h1>
+        <p class="subtitle">用于修复用户角色权限问题</p>
+        
+        <div class="info-box">
+            <strong>使用说明：</strong><br>
+            1. 输入您的邮箱和密码登录<br>
+            2. 选择要设置的角色（admin/operator/viewer）<br>
+            3. 点击修复按钮<br>
+            4. 修复成功后重新登录即可生效
+        </div>
+
+        <div class="form-group">
+            <label for="email">邮箱</label>
+            <input type="email" id="email" placeholder="请输入您的邮箱">
+        </div>
+
+        <div class="form-group">
+            <label for="password">密码</label>
+            <input type="password" id="password" placeholder="请输入您的密码">
+        </div>
+
+        <div class="form-group">
+            <label for="role">要设置的角色</label>
+            <select id="role">
+                <option value="admin">管理员 (admin)</option>
+                <option value="operator" selected>操作员 (operator)</option>
+                <option value="viewer">查看员 (viewer)</option>
+            </select>
+        </div>
+
+        <button onclick="fixPermission()" id="fixBtn">修复权限</button>
+
+        <div id="result" class="result"></div>
+
+        <a href="index.html" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+
+        async function fixPermission() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+            const resultDiv = document.getElementById('result');
+            const fixBtn = document.getElementById('fixBtn');
+
+            if (!email || !password) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '请输入邮箱和密码';
+                return;
+            }
+
+            fixBtn.disabled = true;
+            fixBtn.textContent = '修复中...';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '';
+
+            try {
+                // 创建 Supabase 客户端
+                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+                // 登录
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    throw new Error('登录失败: ' + authError.message);
+                }
+
+                const userId = authData.user.id;
+                console.log('登录成功，用户ID:', userId);
+
+                // 检查 user_roles 表中是否已有记录
+                const { data: existingRole, error: checkError } = await supabase
+                    .from('user_roles')
+                    .select('*')
+                    .eq('user_id', userId);
+
+                if (checkError) {
+                    throw new Error('查询角色失败: ' + checkError.message);
+                }
+
+                let result;
+                if (existingRole && existingRole.length > 0) {
+                    // 更新现有记录
+                    result = await supabase
+                        .from('user_roles')
+                        .update({ role: role, name: email.split('@')[0] })
+                        .eq('user_id', userId);
+                    console.log('更新角色结果:', result);
+                } else {
+                    // 插入新记录
+                    result = await supabase
+                        .from('user_roles')
+                        .insert([{ user_id: userId, role: role, name: email.split('@')[0] }]);
+                    console.log('插入角色结果:', result);
+                }
+
+                if (result.error) {
+                    throw new Error('更新角色失败: ' + result.error.message);
+                }
+
+                // 退出登录
+                await supabase.auth.signOut();
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ 权限修复成功！</strong><br><br>
+                    用户: ${email}<br>
+                    新角色: ${role}<br><br>
+                    请重新登录系统以生效。
+                `;
+
+            } catch (error) {
+                console.error('修复失败:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '修复失败: ' + error.message;
+            } finally {
+                fixBtn.disabled = false;
+                fixBtn.textContent = '修复权限';
+            }
+        }
+    </script>
+</body>
+</html>

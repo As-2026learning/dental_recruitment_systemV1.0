@@ -557,6 +557,13 @@
         // 从数据库加载字段
         async function loadFieldsFromDatabase(templateId) {
             try {
+                // 等待 Supabase 初始化（最多等待3秒）
+                var waitCount = 0;
+                while (!supabase && waitCount < 30) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitCount++;
+                }
+                
                 if (!supabase) {
                     console.log('Supabase未初始化，无法从数据库加载');
                     return null;
@@ -706,11 +713,34 @@
             
             console.log('选择岗位:', position, '使用模板ID:', templateId);
             
+            // 确保 Supabase 已初始化
+            if (!supabase) {
+                console.log('Supabase 未初始化，尝试初始化...');
+                try {
+                    await loadSupabaseSDK();
+                    initSupabase();
+                } catch (e) {
+                    console.error('Supabase 初始化失败:', e);
+                }
+            }
+            
             // 强制清除缓存，确保获取最新数据
             localStorage.removeItem('templateFields_' + templateId);
             
             // 优先从数据库加载，如果失败使用默认字段
-            var fields = await loadFieldsFromDatabase(templateId);
+            var fields = null;
+            var retryCount = 0;
+            var maxRetries = 3;
+            
+            while (!fields && retryCount < maxRetries) {
+                fields = await loadFieldsFromDatabase(templateId);
+                if (!fields) {
+                    retryCount++;
+                    console.log('字段加载失败，重试 ' + retryCount + '/' + maxRetries);
+                    await new Promise(resolve => setTimeout(resolve, 500)); // 等待500ms后重试
+                }
+            }
+            
             if (!fields) {
                 if (templateId === 16) {
                     fields = defaultBaseFields;
@@ -718,6 +748,8 @@
                     fields = defaultTechFields;
                 }
                 console.log('使用默认字段:', fields.length, '个字段');
+            } else {
+                console.log('✅ 从数据库加载字段成功:', fields.length, '个字段');
             }
             
             currentFields = fields;
@@ -1648,36 +1680,41 @@
                 
                 showSuccessState('提交成功！', '正在跳转到面试预约页面...');
                 
+                // 标记流程状态 - 应聘信息已填写完成
+                var nameValue = '';
+                var nameElements = [
+                    document.querySelector('input[name="name"]'),
+                    document.querySelector('input[id*="name"]'),
+                    document.querySelector('input[placeholder*="姓名"]'),
+                    document.querySelector('input[id="field_1"]')
+                ];
+                for (var i = 0; i < nameElements.length; i++) {
+                    var element = nameElements[i];
+                    if (element && element.value.trim()) {
+                        nameValue = element.value.trim();
+                        break;
+                    }
+                }
+                
+                // 保存流程状态到 localStorage
+                localStorage.setItem('currentApplication', JSON.stringify({
+                    id: applicationId,
+                    name: nameValue,
+                    phone: formData.fields.phone || '',
+                    position: formData.position,
+                    completedAt: new Date().toISOString()
+                }));
+                localStorage.setItem('candidateProfile', JSON.stringify({
+                    name: nameValue,
+                    phone: formData.fields.phone || '',
+                    position: formData.position
+                }));
+                
                 // 延迟跳转到面试预约页面
                 setTimeout(function() {
                     var redirectUrl = 'booking.html';
                     if (applicationId) {
                         redirectUrl += '?application_id=' + encodeURIComponent(applicationId);
-                        
-                        // 简化但更可靠的姓名获取逻辑
-                        var nameValue = '';
-                        
-                        // 直接从表单元素获取姓名，不依赖 formData
-                        // 查找所有可能的姓名字段
-                        var nameElements = [
-                            document.querySelector('input[name="name"]'),
-                            document.querySelector('input[id*="name"]'),
-                            document.querySelector('input[placeholder*="姓名"]'),
-                            document.querySelector('input[id="field_1"]') // 通常姓名字段是第一个字段
-                        ];
-                        
-                        // 遍历所有可能的元素，找到第一个有值的
-                        for (var i = 0; i < nameElements.length; i++) {
-                            var element = nameElements[i];
-                            if (element && element.value.trim()) {
-                                nameValue = element.value.trim();
-                                break;
-                            }
-                        }
-                        
-                        // 确保获取到值
-                        console.log('最终获取到的姓名:', nameValue);
-                        
                         redirectUrl += '&name=' + encodeURIComponent(nameValue || '');
                         redirectUrl += '&phone=' + encodeURIComponent(formData.fields.phone || '');
                         redirectUrl += '&position=' + encodeURIComponent(formData.position);
@@ -1712,8 +1749,16 @@
         document.getElementById('applicationForm').addEventListener('submit', submitForm);
 
         // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            initSupabase();
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 先加载 Supabase SDK
+            try {
+                await loadSupabaseSDK();
+                initSupabase();
+                console.log('✅ Supabase 初始化完成');
+            } catch (e) {
+                console.error('❌ Supabase 初始化失败:', e);
+            }
+            
             updateProgress();
             
             // 检查是否有之前的申请信息

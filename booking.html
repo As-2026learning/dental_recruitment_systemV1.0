@@ -858,6 +858,17 @@
         var result = await db.from('bookings').insert([data]).select();
         if (result.error) throw result.error;
 
+        // 标记流程状态 - 面试已预约完成
+        localStorage.setItem('currentBooking', JSON.stringify({
+            id: result.data[0].id,
+            name: name,
+            phone: phone,
+            position: position,
+            bookingDate: selectedDate,
+            timeSlot: selectedSlot,
+            bookedAt: new Date().toISOString()
+        }));
+
         window.location.href = 'success-standalone.html?id=' + result.data[0].id;
       } catch (e) {
         if (e.message && e.message.includes('duplicate key')) {

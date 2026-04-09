@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>系统设置 - 招聘</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -338,6 +338,49 @@
           </div>
           <button class="btn btn-primary" onclick="saveSuccessTips()">保存温馨提示</button>
         </div>
+        
+        <div class="card">
+          <h3>状态查询页面温馨提示（显示在状态查询页面）</h3>
+          <div class="form-group">
+            <label>温馨提示标题</label>
+            <input type="text" id="statusQueryTipsTitle" placeholder="请输入温馨提示标题，如：💡 温馨提示" value="💡 温馨提示">
+          </div>
+          <div class="form-group">
+            <label>温馨提示内容（每行一条，或竖线 | 分隔）</label>
+            <textarea id="statusQueryTipsContent" rows="6" placeholder="请确保输入的姓名和手机号与预约时填写的一致&#10;预约提交后，工作人员会在1-2个工作日内审核&#10;如有疑问，请联系招聘热线：xxx-xxxx-xxxx"></textarea>
+            <p style="color: #999; font-size: 12px; margin-top: 5px;">
+              💡 支持格式：1) 每行输入一条提示 2) 用竖线 | 分隔多条提示<br>
+              示例：提示1|提示2|提示3
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="saveStatusQueryTips()">保存状态查询温馨提示</button>
+        </div>
+        
+        <!-- 实时预览 -->
+        <div class="card">
+          <h3>实时预览</h3>
+          <div id="tipsPreview" style="background: #f8f9ff; border-radius: 8px; padding: 16px; border: 1px solid #e0e0e0;">
+            <div class="preview-tips">
+              <h4 style="font-size: 14px; color: #333; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span id="previewTitle">💡 温馨提示</span>
+              </h4>
+              <ul id="previewList" style="list-style: none; font-size: 13px; color: #666; padding-left: 0;">
+                <li style="padding: 4px 0; padding-left: 16px; position: relative;">
+                  <span style="position: absolute; left: 4px; color: #667eea;">•</span>
+                  请确保输入的姓名和手机号与预约时填写的一致
+                </li>
+                <li style="padding: 4px 0; padding-left: 16px; position: relative;">
+                  <span style="position: absolute; left: 4px; color: #667eea;">•</span>
+                  预约提交后，工作人员会在1-2个工作日内审核
+                </li>
+                <li style="padding: 4px 0; padding-left: 16px; position: relative;">
+                  <span style="position: absolute; left: 4px; color: #667eea;">•</span>
+                  如有疑问，请联系招聘热线：xxx-xxxx-xxxx
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- 横幅文本配置 -->
@@ -543,7 +586,7 @@
       const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
       const token = localStorage.getItem('adminToken');
       if (!isLoggedIn || !token) {
-        window.location.href = 'login.html';
+        window.location.href = 'login-new.html';
         return;
       }
 
@@ -580,41 +623,41 @@
 
     var db = null;
 
-    function loadSDK() {
-      var cdnList = [
-        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
-        'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js'
-      ];
-      var index = 0;
-
-      function tryLoad() {
-        if (index >= cdnList.length) {
-          alert('系统加载失败，请检查网络');
-          return;
-        }
-        var script = document.createElement('script');
-        script.src = cdnList[index];
-        script.onload = function() { initApp(); };
-        script.onerror = function() { index++; tryLoad(); };
-        document.head.appendChild(script);
-      }
-      tryLoad();
-    }
-
     async function initApp() {
+        // 等待 Supabase 加载完成
+        let attempts = 0;
+        const maxAttempts = 50; // 最多等待2.5秒
+        
+        while (attempts < maxAttempts && (!window.supabase || !window.supabase.createClient)) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            attempts++;
+        }
+        
         if (window.supabase && window.supabase.createClient) {
-            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log('✅ Supabase 初始化成功');
+            try {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('✅ Supabase 初始化成功');
+            } catch (e) {
+                console.error('❌ Supabase 客户端创建失败:', e);
+                db = null;
+            }
         } else {
             console.error('❌ Supabase SDK 未加载，使用本地存储模式');
             db = null;
         }
         
-        loadPositions();
-        loadJobTypes();
-        loadSlots();
-        await loadTips();
-        await loadTemplates();
+        // 并行加载数据，提高速度
+        try {
+            await Promise.all([
+                loadPositions(),
+                loadJobTypes(),
+                loadSlots(),
+                loadTips(),
+                loadTemplates()
+            ]);
+        } catch (e) {
+            console.error('加载数据失败:', e);
+        }
         
         // 加载横幅文本
         try {
@@ -770,10 +813,7 @@
     async function loadJobTypes() {
       var tbody = document.getElementById('jobTypesList');
       try {
-        // 使用 fetch API 直接查询，绕过缓存
-        var SUPABASE_URL = 'https://dxrghlgmwfwpuxjvyisv.supabase.co';
-        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobGdtd2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MzUwMzAsImV4cCI6MjA1NzUxMTAzMH0.VdL0r7a8j__r5l5-0A5Gj6_9s6z7r7x8y9z0a1b2c3d';
-        
+        // 使用全局的 Supabase 配置
         var response = await fetch(SUPABASE_URL + '/rest/v1/job_types?select=*&order=sort_order', {
           method: 'GET',
           headers: {
@@ -1040,12 +1080,26 @@
         var result = await db.from('system_config').select('*');
         if (result.error) throw result.error;
         
+        console.log('加载到的所有配置:', result.data);
+        
+        // 标记是否找到了状态查询配置
+        var foundStatusQueryTitle = false;
+        var foundStatusQueryContent = false;
+        
         for (var i = 0; i < result.data.length; i++) {
           var config = result.data[i];
           if (config.config_key === 'booking_notice') {
             document.getElementById('bookingNotice').value = config.config_value || '';
           } else if (config.config_key === 'success_tips') {
             document.getElementById('successTips').value = config.config_value || '';
+          } else if (config.config_key === 'status_query_tips_title') {
+            document.getElementById('statusQueryTipsTitle').value = config.config_value || '💡 温馨提示';
+            foundStatusQueryTitle = true;
+            updateTipsPreview();
+          } else if (config.config_key === 'status_query_tips_content') {
+            document.getElementById('statusQueryTipsContent').value = config.config_value || '';
+            foundStatusQueryContent = true;
+            updateTipsPreview();
           } else if (config.config_key === 'banner_settings') {
             document.getElementById('bannerSettings').value = config.config_value || '';
           } else if (config.config_key === 'banner_booking') {
@@ -1054,10 +1108,124 @@
             document.getElementById('bannerAdmin').value = config.config_value || '';
           }
         }
+        
+        // 如果没有找到状态查询配置，自动创建默认值
+        if (!foundStatusQueryTitle || !foundStatusQueryContent) {
+          console.log('未找到状态查询配置，准备创建默认值...');
+          await initStatusQueryTips();
+        }
       } catch (e) {
         console.error('加载配置失败:', e);
       }
     }
+    
+    // 初始化状态查询温馨提示默认值
+    async function initStatusQueryTips() {
+      try {
+        var defaultTitle = '💡 温馨提示';
+        var defaultContent = '请确保输入的姓名和手机号与预约时填写的一致\n预约提交后，工作人员会在1-2个工作日内审核\n如有疑问，请联系招聘热线：xxx-xxxx-xxxx';
+        
+        // 检查并创建标题配置
+        var titleResult = await db.from('system_config')
+          .select('*')
+          .eq('config_key', 'status_query_tips_title')
+          .single();
+        
+        if (titleResult.error && titleResult.error.code === 'PGRST116') {
+          console.log('创建默认标题配置...');
+          await db.from('system_config').insert([{
+            config_key: 'status_query_tips_title',
+            config_value: defaultTitle,
+            description: '状态查询页面温馨提示标题'
+          }]);
+          document.getElementById('statusQueryTipsTitle').value = defaultTitle;
+        }
+        
+        // 检查并创建内容配置
+        var contentResult = await db.from('system_config')
+          .select('*')
+          .eq('config_key', 'status_query_tips_content')
+          .single();
+        
+        if (contentResult.error && contentResult.error.code === 'PGRST116') {
+          console.log('创建默认内容配置...');
+          await db.from('system_config').insert([{
+            config_key: 'status_query_tips_content',
+            config_value: defaultContent,
+            description: '状态查询页面温馨提示内容'
+          }]);
+          document.getElementById('statusQueryTipsContent').value = defaultContent;
+        }
+        
+        updateTipsPreview();
+        console.log('状态查询温馨提示默认值已创建');
+      } catch (e) {
+        console.error('初始化状态查询温馨提示失败:', e);
+      }
+    }
+    
+    // 实时更新预览
+    function updateTipsPreview() {
+      var titleInput = document.getElementById('statusQueryTipsTitle');
+      var contentInput = document.getElementById('statusQueryTipsContent');
+      
+      if (!titleInput || !contentInput) return;
+      
+      var title = titleInput.value || '💡 温馨提示';
+      var content = contentInput.value || '';
+      
+      document.getElementById('previewTitle').textContent = title;
+      
+      // 支持多种分隔符：换行符、竖线、分号
+      var lines = [];
+      if (content.indexOf('\n') !== -1) {
+        // 有换行符，按行分割
+        lines = content.split('\n');
+      } else if (content.indexOf('|') !== -1) {
+        // 有竖线，按竖线分割
+        lines = content.split('|');
+      } else if (content.indexOf('；') !== -1) {
+        // 有中文分号，按分号分割
+        lines = content.split('；');
+      } else if (content.indexOf(';') !== -1) {
+        // 有英文分号，按分号分割
+        lines = content.split(';');
+      } else {
+        // 没有分隔符，作为一整行
+        lines = [content];
+      }
+      
+      // 过滤空行
+      lines = lines.filter(function(line) { return line.trim(); });
+      
+      var listHtml = '';
+      
+      if (lines.length === 0) {
+        listHtml = '<li style="padding: 4px 0; padding-left: 16px; position: relative; color: #999;">暂无提示内容</li>';
+      } else {
+        for (var i = 0; i < lines.length; i++) {
+          listHtml += '<li style="padding: 4px 0; padding-left: 16px; position: relative;">' +
+            '<span style="position: absolute; left: 4px; color: #667eea;">•</span>' +
+            lines[i].trim() +
+            '</li>';
+        }
+      }
+      
+      document.getElementById('previewList').innerHTML = listHtml;
+    }
+    
+    // 监听输入变化，实时更新预览
+    document.addEventListener('DOMContentLoaded', function() {
+      var titleInput = document.getElementById('statusQueryTipsTitle');
+      var contentInput = document.getElementById('statusQueryTipsContent');
+      
+      if (titleInput) {
+        titleInput.addEventListener('input', updateTipsPreview);
+      }
+      if (contentInput) {
+        contentInput.addEventListener('input', updateTipsPreview);
+      }
+    });
 
     async function saveBookingNotice() {
       var value = document.getElementById('bookingNotice').value.trim();
@@ -1093,6 +1261,79 @@
         alert('保存成功');
       } catch (e) {
         alert('保存失败: ' + e.message);
+      }
+    }
+
+    async function saveStatusQueryTips() {
+      var title = document.getElementById('statusQueryTipsTitle').value.trim();
+      var content = document.getElementById('statusQueryTipsContent').value.trim();
+      
+      if (!title) {
+        alert('请输入温馨提示标题');
+        return;
+      }
+      
+      console.log('准备保存状态查询温馨提示...');
+      console.log('标题:', title);
+      console.log('内容:', content);
+      
+      try {
+        // 先检查记录是否存在
+        var checkResult = await db.from('system_config')
+          .select('*')
+          .in('config_key', ['status_query_tips_title', 'status_query_tips_content']);
+        console.log('现有配置记录:', checkResult);
+        
+        // 保存标题
+        console.log('正在保存标题...');
+        var titleResult = await db.from('system_config').update({ config_value: title }).eq('config_key', 'status_query_tips_title');
+        console.log('标题更新结果:', titleResult);
+        
+        if (titleResult.error) {
+          console.log('标题更新失败，尝试插入:', titleResult.error);
+          if (titleResult.error.code === 'PGRST116' || titleResult.error.message.includes('No rows found')) {
+            var titleInsertResult = await db.from('system_config').insert([{ 
+              config_key: 'status_query_tips_title', 
+              config_value: title,
+              description: '状态查询页面温馨提示标题'
+            }]);
+            console.log('标题插入结果:', titleInsertResult);
+            if (titleInsertResult.error) throw titleInsertResult.error;
+          } else {
+            throw titleResult.error;
+          }
+        }
+        
+        // 保存内容
+        console.log('正在保存内容...');
+        var contentResult = await db.from('system_config').update({ config_value: content }).eq('config_key', 'status_query_tips_content');
+        console.log('内容更新结果:', contentResult);
+        
+        if (contentResult.error) {
+          console.log('内容更新失败，尝试插入:', contentResult.error);
+          if (contentResult.error.code === 'PGRST116' || contentResult.error.message.includes('No rows found')) {
+            var contentInsertResult = await db.from('system_config').insert([{ 
+              config_key: 'status_query_tips_content', 
+              config_value: content,
+              description: '状态查询页面温馨提示内容'
+            }]);
+            console.log('内容插入结果:', contentInsertResult);
+            if (contentInsertResult.error) throw contentInsertResult.error;
+          } else {
+            throw contentResult.error;
+          }
+        }
+        
+        // 验证保存结果
+        var verifyResult = await db.from('system_config')
+          .select('*')
+          .in('config_key', ['status_query_tips_title', 'status_query_tips_content']);
+        console.log('保存后验证:', verifyResult);
+        
+        alert('保存成功！状态查询页面的温馨提示已更新。');
+      } catch (e) {
+        alert('保存失败: ' + e.message);
+        console.error('保存状态查询温馨提示失败:', e);
       }
     }
 
@@ -2205,7 +2446,7 @@
         input.click();
     }
 
-    document.addEventListener('DOMContentLoaded', loadSDK);
+    document.addEventListener('DOMContentLoaded', initApp);
     
     // Test script
     window.addEventListener('load', function() {
