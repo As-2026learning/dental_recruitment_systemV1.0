@@ -18,7 +18,8 @@
         // Supabase 配置
         // 这些值应该从环境变量读取，这里提供默认值
         SUPABASE_URL: 'https://dxrghlqnwfwpuxjvyisv.supabase.co',
-        SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ',
+        // fix: 2026-04-19 更新 API Key - 旧 Key 已泄露，更换为新 Key
+        SUPABASE_KEY: 'sb_publishable_jIeq2dPdvQbWo0yyHGhfyw_QL5C5R_Y',
         
         // 应用信息
         APP_NAME: '义齿工厂招聘系统',
