@@ -95,6 +95,18 @@
       color: white;
     }
     .btn-danger:hover { background: #c0392b; }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-size: 18px;
+      padding: 16px 40px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
     .btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -208,7 +220,7 @@
       
       <div id="cancelSection"></div>
       
-      <button class="btn" onclick="saveAsImage()">保存为图片</button>
+      <a href="#" class="btn btn-primary" onclick="goToStatusQuery()">🔍 查询预约状态</a>
       <a href="booking.html" class="btn">返回首页</a>
     </div>
   </div>
@@ -225,9 +237,13 @@
     </div>
   </div>
 
+  <!-- fix: 引入统一配置模块 - 替代硬编码的Supabase密钥 -->
+  <script src="js/config.js"></script>
+
   <script>
-    var SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+    // fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+    var SUPABASE_URL = CONFIG.SUPABASE_URL;
+    var SUPABASE_KEY = CONFIG.SUPABASE_KEY;
 
     var db = null;
     var timeSlots = [];
@@ -564,6 +580,23 @@
         alert('取消预约失败: ' + e.message);
         closeCancelModal();
       }
+    }
+
+    // 跳转到预约状态查询页面，自动传递姓名和电话
+    function goToStatusQuery() {
+      if (!currentBooking) {
+        // 如果没有当前预约信息，直接跳转到查询页面
+        window.location.href = 'status-query.html';
+        return;
+      }
+      
+      // 构建带参数的URL
+      var params = new URLSearchParams();
+      params.set('name', currentBooking.name);
+      params.set('phone', currentBooking.phone);
+      
+      // 跳转到状态查询页面
+      window.location.href = 'status-query.html?' + params.toString();
     }
 
     function showError(msg) {

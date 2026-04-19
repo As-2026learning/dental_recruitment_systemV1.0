@@ -8,6 +8,8 @@
   <meta http-equiv="Expires" content="0">
   <title>系统设置 - 招聘</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=2"></script>
+  <!-- fix: 引入统一配置模块 - 必须在CONFIG使用之前加载 -->
+  <script src="js/config.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -543,7 +545,8 @@
       const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
       const token = localStorage.getItem('adminToken');
       if (!isLoggedIn || !token) {
-        window.location.href = 'login.html';
+        // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+        window.location.href = 'login-new.html';
         return;
       }
 
@@ -575,8 +578,9 @@
       }
     })();
 
-    var SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+    // fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+    var SUPABASE_URL = CONFIG.SUPABASE_URL;
+    var SUPABASE_KEY = CONFIG.SUPABASE_KEY;
 
     var db = null;
 

@@ -54,6 +54,43 @@
     }
     .stat-card .stat-value { font-size: 32px; font-weight: 700; color: #667eea; margin-bottom: 5px; }
     .stat-card .stat-label { color: #666; font-size: 14px; }
+
+    /* fix: 统计卡片点击交互样式 - 支持卡片与数据联动筛选 */
+    .stat-card {
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .stat-card.active {
+      border: 2px solid #667eea;
+      background: linear-gradient(135deg, #f8f9ff 0%, #eef1ff 100%);
+    }
+
+    .stat-card.active::after {
+      content: '✓';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 20px;
+      height: 20px;
+      background: #667eea;
+      color: white;
+      border-radius: 50%;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stat-card.active .stat-value {
+      color: #667eea;
+    }
     .admin-header {
       display: flex;
       justify-content: space-between;
@@ -194,6 +231,165 @@
       font-size: 14px;
     }
     .alert-error { background: #ffebee; color: #c62828; border-left: 4px solid #c62828; }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9ff;
+      border-radius: 8px;
+    }
+    .pagination button {
+      padding: 8px 16px;
+      border: 1px solid #e0e0e0;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .pagination button:hover:not(:disabled) {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .pagination button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    .pagination .page-info {
+      color: #666;
+      font-size: 14px;
+      margin: 0 10px;
+    }
+    .pagination .page-size-selector {
+      margin-left: 15px;
+      padding: 6px 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    /* fix: 新增 - 自定义日期范围选择器样式 */
+    .date-range-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .date-range-picker {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: #f8f9ff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+    .date-range-picker.active {
+      display: flex;
+    }
+    .date-range-picker input[type="date"] {
+      padding: 6px 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .date-range-picker .date-separator {
+      color: #666;
+      font-size: 14px;
+    }
+    .date-range-picker .btn-apply {
+      padding: 6px 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.3s;
+    }
+    .date-range-picker .btn-apply:hover {
+      background: #5a6fd6;
+    }
+    .date-range-picker .btn-clear {
+      padding: 6px 12px;
+      background: #f5f5f5;
+      color: #666;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.3s;
+    }
+    .date-range-picker .btn-clear:hover {
+      background: #e0e0e0;
+    }
+    .date-range-display {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: #e8f5e9;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #2e7d32;
+    }
+    .date-range-display.active {
+      display: flex;
+    }
+    .date-range-display .btn-edit {
+      padding: 4px 8px;
+      background: white;
+      border: 1px solid #4caf50;
+      color: #4caf50;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .date-range-display .btn-edit:hover {
+      background: #4caf50;
+      color: white;
+    }
+    /* fix: 新增 - 退出按钮样式 */
+    .logout-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    .logout-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    @media (max-width: 768px) {
+      .logout-btn {
+        position: static;
+        margin-top: 10px;
+        background: rgba(255, 255, 255, 0.15);
+      }
+    }
     .loading {
       display: flex;
       justify-content: center;
@@ -239,7 +435,7 @@
   </div>
 
   <div class="container">
-    <div class="header">
+    <div class="header" style="position: relative;">
       <h1>面试预约管理后台</h1>
       <p>招聘管理系统</p>
       <div class="nav-links">
@@ -250,25 +446,42 @@
         <a href="settings.html">系统设置 →</a>
         <a href="permissions.html">权限管理 →</a>
       </div>
+      <!-- fix: 新增 - 退出按钮 -->
+      <button class="logout-btn" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        退出登录
+      </button>
     </div>
     
     <div class="main-content">
       <div class="stats-grid" id="statsGrid">
-        <div class="stat-card">
+        <div class="stat-card" data-filter="all" onclick="filterByCard('all')">
           <div class="stat-value" id="totalBookings">-</div>
           <div class="stat-label">总预约数</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="pending" onclick="filterByCard('pending')">
           <div class="stat-value" id="pendingBookings">-</div>
           <div class="stat-label">待确认</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="confirmed" onclick="filterByCard('confirmed')">
           <div class="stat-value" id="confirmedBookings">-</div>
           <div class="stat-label">已确认</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="cancelled" onclick="filterByCard('cancelled')">
+          <div class="stat-value" id="cancelledBookings">-</div>
+          <div class="stat-label">已取消</div>
+        </div>
+        <div class="stat-card" data-filter="today" onclick="filterByCard('today')">
           <div class="stat-value" id="todayBookings">-</div>
           <div class="stat-label">今日预约</div>
+        </div>
+        <div class="stat-card" data-filter="week" onclick="filterByCard('week')">
+          <div class="stat-value" id="weekBookings">-</div>
+          <div class="stat-label">本周预约</div>
         </div>
       </div>
 
@@ -283,19 +496,34 @@
       </div>
 
       <div class="admin-filters">
-        <select id="filterDate" onchange="loadBookings()">
-          <option value="">全部日期</option>
-          <option value="today">今天</option>
-          <option value="week">本周</option>
-          <option value="month">本月</option>
-        </select>
-        <select id="filterStatus" onchange="loadBookings()">
+        <div class="date-range-container">
+          <select id="filterDate" onchange="onDateFilterChange()">
+            <option value="">全部日期</option>
+            <option value="today">今天</option>
+            <option value="week">本周</option>
+            <option value="month">本月</option>
+            <option value="custom">自定义范围</option>
+          </select>
+          <!-- fix: 新增 - 自定义日期范围选择器 -->
+          <div id="dateRangePicker" class="date-range-picker">
+            <input type="date" id="customStartDate" placeholder="开始日期">
+            <span class="date-separator">至</span>
+            <input type="date" id="customEndDate" placeholder="结束日期">
+            <button class="btn-apply" onclick="applyCustomDateRange()">应用</button>
+            <button class="btn-clear" onclick="clearCustomDateRange()">清除</button>
+          </div>
+          <div id="dateRangeDisplay" class="date-range-display">
+            <span id="dateRangeText"></span>
+            <button class="btn-edit" onclick="editCustomDateRange()">修改</button>
+          </div>
+        </div>
+        <select id="filterStatus" onchange="onFilterChange()">
           <option value="">全部状态</option>
           <option value="pending">待确认</option>
           <option value="confirmed">已确认</option>
           <option value="cancelled">已取消</option>
         </select>
-        <select id="filterTimeSlot" onchange="loadBookings()">
+        <select id="filterTimeSlot" onchange="onFilterChange()">
           <option value="">全部时段</option>
           <option value="slot_1">上午场 09:00-10:00</option>
           <option value="slot_2">上午场 10:00-10:30</option>
@@ -303,7 +531,7 @@
           <option value="slot_4">下午场 14:00-15:00</option>
           <option value="slot_5">下午场 15:00-15:30</option>
         </select>
-        <input type="text" id="filterSearch" placeholder="搜索姓名/电话/岗位" onkeyup="loadBookings()" style="width: 200px;">
+        <input type="text" id="filterSearch" placeholder="搜索姓名/电话/岗位" onkeyup="onFilterChange()" style="width: 200px;">
       </div>
 
       <div id="dataContainer">
@@ -314,6 +542,8 @@
 
   <!-- 引入权限管理模块 -->
   <script src="auth.js"></script>
+  <!-- fix: 引入统一配置模块 - 替代硬编码的Supabase密钥 -->
+  <script src="js/config.js"></script>
 
   <script>
     // ==================== 登录检查 ====================
@@ -321,13 +551,15 @@
       const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
       const token = localStorage.getItem('adminToken');
       if (!isLoggedIn || !token) {
-        window.location.href = 'login.html';
+        // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+        window.location.href = 'login-new.html';
         return;
       }
     })();
 
-    var SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+    // fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+    var SUPABASE_URL = CONFIG.SUPABASE_URL;
+    var SUPABASE_KEY = CONFIG.SUPABASE_KEY;
     var TIME_SLOTS = {
       slot_1: { label: '上午场 09:00-10:00', capacity: 10 },
       slot_2: { label: '上午场 10:00-10:30', capacity: 5 },
@@ -339,6 +571,21 @@
     var db = null;
     var allBookings = [];
     var currentView = 'list';
+
+    // fix: 新增 - 当前激活的统计卡片筛选条件，用于卡片与数据联动
+    var activeCardFilter = null; // 可能的值: null, 'all', 'pending', 'confirmed', 'cancelled', 'today', 'week'
+
+    // fix: 新增 - 分页相关变量
+    var currentPage = 1;
+    var pageSize = 20;
+    var totalPages = 1;
+
+    // fix: 新增 - 自定义日期范围相关变量
+    var customDateRange = {
+      startDate: null,
+      endDate: null,
+      isActive: false
+    };
 
     function formatDate(d) {
       var y = d.getFullYear();
@@ -389,26 +636,116 @@
 
     async function loadStats() {
       try {
-        var today = formatDate(new Date());
+        var today = new Date();
+        var todayStr = formatDate(today);
+
+        // 计算本周开始和结束日期（周一到周日）
+        var weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay() + 1);
+        var weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        var weekStartStr = formatDate(weekStart);
+        var weekEndStr = formatDate(weekEnd);
+
         var result = await db.from('bookings').select('status, booking_date');
         if (result.error) throw result.error;
 
         var data = result.data;
         var total = data.length;
-        var pending = 0, confirmed = 0, todayCount = 0;
-        
+        var pending = 0, confirmed = 0, cancelled = 0, todayCount = 0, weekCount = 0;
+
         for (var i = 0; i < data.length; i++) {
           if (data[i].status === 'pending') pending++;
           if (data[i].status === 'confirmed') confirmed++;
-          if (data[i].booking_date === today) todayCount++;
+          if (data[i].status === 'cancelled') cancelled++;
+          if (data[i].booking_date === todayStr) todayCount++;
+          if (data[i].booking_date >= weekStartStr && data[i].booking_date <= weekEndStr) weekCount++;
         }
 
         document.getElementById('totalBookings').textContent = total;
         document.getElementById('pendingBookings').textContent = pending;
         document.getElementById('confirmedBookings').textContent = confirmed;
+        document.getElementById('cancelledBookings').textContent = cancelled;
         document.getElementById('todayBookings').textContent = todayCount;
+        document.getElementById('weekBookings').textContent = weekCount;
       } catch (e) {
         console.error('加载统计失败:', e);
+      }
+    }
+
+    // fix: 新增 - 实现卡片点击与数据联动筛选功能
+
+    /**
+     * 根据统计卡片筛选数据
+     * @param {string} filterType - 筛选类型: 'all', 'pending', 'confirmed', 'cancelled', 'today', 'week'
+     */
+    function filterByCard(filterType) {
+      // 记录当前激活的卡片筛选条件
+      activeCardFilter = filterType;
+
+      // 更新卡片视觉状态
+      updateCardVisualState(filterType);
+
+      // 根据卡片类型设置筛选条件
+      switch (filterType) {
+        case 'all':
+          // 总预约数 - 清空所有筛选条件
+          document.getElementById('filterDate').value = '';
+          document.getElementById('filterStatus').value = '';
+          break;
+
+        case 'pending':
+          // 待确认 - 设置状态为 pending
+          document.getElementById('filterDate').value = '';
+          document.getElementById('filterStatus').value = 'pending';
+          break;
+
+        case 'confirmed':
+          // 已确认 - 设置状态为 confirmed
+          document.getElementById('filterDate').value = '';
+          document.getElementById('filterStatus').value = 'confirmed';
+          break;
+
+        case 'cancelled':
+          // 已取消 - 设置状态为 cancelled
+          document.getElementById('filterDate').value = '';
+          document.getElementById('filterStatus').value = 'cancelled';
+          break;
+
+        case 'today':
+          // 今日预约 - 设置日期为今天
+          document.getElementById('filterDate').value = 'today';
+          document.getElementById('filterStatus').value = '';
+          break;
+
+        case 'week':
+          // 本周预约 - 设置日期为本周
+          document.getElementById('filterDate').value = 'week';
+          document.getElementById('filterStatus').value = '';
+          break;
+      }
+
+      // 执行筛选
+      loadBookings();
+    }
+
+    /**
+     * 更新统计卡片视觉状态
+     * @param {string} activeFilter - 当前激活的筛选类型
+     */
+    function updateCardVisualState(activeFilter) {
+      // 移除所有卡片的激活状态
+      var cards = document.querySelectorAll('.stat-card');
+      for (var i = 0; i < cards.length; i++) {
+        cards[i].classList.remove('active');
+      }
+
+      // 为当前激活的卡片添加激活状态
+      if (activeFilter) {
+        var activeCard = document.querySelector('.stat-card[data-filter="' + activeFilter + '"]');
+        if (activeCard) {
+          activeCard.classList.add('active');
+        }
       }
     }
 
@@ -433,6 +770,9 @@
           var monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
           var monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
           query = query.gte('booking_date', formatDate(monthStart)).lte('booking_date', formatDate(monthEnd));
+        } else if (dateFilter === 'custom' && customDateRange.isActive) {
+          // fix: 新增 - 自定义日期范围筛选
+          query = query.gte('booking_date', customDateRange.startDate).lte('booking_date', customDateRange.endDate);
         }
 
         var statusFilter = document.getElementById('filterStatus').value;
@@ -460,8 +800,18 @@
 
         allBookings = filteredData;
 
+        // fix: 新增 - 计算分页信息
+        totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        // fix: 新增 - 截取当前页数据
+        var startIndex = (currentPage - 1) * pageSize;
+        var endIndex = startIndex + pageSize;
+        var pageData = filteredData.slice(startIndex, endIndex);
+
         if (currentView === 'list') {
-          renderListView(filteredData);
+          renderListView(pageData, filteredData.length);
         } else {
           renderCalendarView(filteredData);
         }
@@ -473,7 +823,189 @@
 
     var selectedBookings = [];
 
-    function renderListView(bookings) {
+    // fix: 新增 - 分页渲染函数
+    function renderPagination(totalItems) {
+      var html = '<div class="pagination">';
+
+      // 上一页按钮
+      html += '<button onclick="goToPage(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>上一页</button>';
+
+      // 页码按钮
+      var maxVisiblePages = 5;
+      var startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+      var endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      if (startPage > 1) {
+        html += '<button onclick="goToPage(1)">1</button>';
+        if (startPage > 2) html += '<span style="padding: 0 5px;">...</span>';
+      }
+
+      for (var i = startPage; i <= endPage; i++) {
+        html += '<button onclick="goToPage(' + i + ')" class="' + (i === currentPage ? 'active' : '') + '">' + i + '</button>';
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += '<span style="padding: 0 5px;">...</span>';
+        html += '<button onclick="goToPage(' + totalPages + ')">' + totalPages + '</button>';
+      }
+
+      // 下一页按钮
+      html += '<button onclick="goToPage(' + (currentPage + 1) + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>下一页</button>';
+
+      // 页码信息
+      var startItem = (currentPage - 1) * pageSize + 1;
+      var endItem = Math.min(currentPage * pageSize, totalItems);
+      html += '<span class="page-info">第 ' + startItem + '-' + endItem + ' 条，共 ' + totalItems + ' 条</span>';
+
+      // 每页条数选择器
+      html += '<select class="page-size-selector" onchange="changePageSize(this.value)">';
+      html += '<option value="10" ' + (pageSize === 10 ? 'selected' : '') + '>10条/页</option>';
+      html += '<option value="20" ' + (pageSize === 20 ? 'selected' : '') + '>20条/页</option>';
+      html += '<option value="50" ' + (pageSize === 50 ? 'selected' : '') + '>50条/页</option>';
+      html += '<option value="100" ' + (pageSize === 100 ? 'selected' : '') + '>100条/页</option>';
+      html += '</select>';
+
+      html += '</div>';
+      return html;
+    }
+
+    // fix: 新增 - 跳转到指定页
+    function goToPage(page) {
+      if (page < 1 || page > totalPages) return;
+      currentPage = page;
+      loadBookings();
+    }
+
+    // fix: 新增 - 改变每页条数
+    function changePageSize(size) {
+      pageSize = parseInt(size);
+      currentPage = 1;
+      loadBookings();
+    }
+
+    // fix: 新增 - 筛选条件变化时重置页码
+    function onFilterChange() {
+      currentPage = 1;
+      loadBookings();
+    }
+
+    // fix: 新增 - 日期筛选变化处理
+    function onDateFilterChange() {
+      var dateFilter = document.getElementById('filterDate').value;
+      var picker = document.getElementById('dateRangePicker');
+      var display = document.getElementById('dateRangeDisplay');
+
+      if (dateFilter === 'custom') {
+        // 显示自定义日期选择器
+        picker.classList.add('active');
+        display.classList.remove('active');
+        // 设置默认日期范围（最近7天）
+        if (!customDateRange.isActive) {
+          var today = new Date();
+          var weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 6);
+          document.getElementById('customStartDate').value = formatDate(weekAgo);
+          document.getElementById('customEndDate').value = formatDate(today);
+        }
+      } else {
+        // 隐藏自定义日期选择器
+        picker.classList.remove('active');
+        display.classList.remove('active');
+        // 清除自定义日期范围
+        customDateRange.isActive = false;
+        customDateRange.startDate = null;
+        customDateRange.endDate = null;
+        onFilterChange();
+      }
+    }
+
+    // fix: 新增 - 应用自定义日期范围
+    function applyCustomDateRange() {
+      var startDate = document.getElementById('customStartDate').value;
+      var endDate = document.getElementById('customEndDate').value;
+
+      if (!startDate || !endDate) {
+        alert('请选择开始日期和结束日期');
+        return;
+      }
+
+      if (startDate > endDate) {
+        alert('开始日期不能晚于结束日期');
+        return;
+      }
+
+      // 保存自定义日期范围
+      customDateRange.startDate = startDate;
+      customDateRange.endDate = endDate;
+      customDateRange.isActive = true;
+
+      // 更新显示
+      updateDateRangeDisplay();
+
+      // 隐藏选择器，显示已选择范围
+      document.getElementById('dateRangePicker').classList.remove('active');
+      document.getElementById('dateRangeDisplay').classList.add('active');
+
+      // 触发筛选
+      onFilterChange();
+    }
+
+    // fix: 新增 - 清除自定义日期范围
+    function clearCustomDateRange() {
+      customDateRange.isActive = false;
+      customDateRange.startDate = null;
+      customDateRange.endDate = null;
+
+      // 重置为全部日期
+      document.getElementById('filterDate').value = '';
+      document.getElementById('dateRangePicker').classList.remove('active');
+      document.getElementById('dateRangeDisplay').classList.remove('active');
+
+      onFilterChange();
+    }
+
+    // fix: 新增 - 编辑自定义日期范围
+    function editCustomDateRange() {
+      document.getElementById('dateRangePicker').classList.add('active');
+      document.getElementById('dateRangeDisplay').classList.remove('active');
+    }
+
+    // fix: 新增 - 更新日期范围显示文本
+    function updateDateRangeDisplay() {
+      var text = customDateRange.startDate + ' 至 ' + customDateRange.endDate;
+      document.getElementById('dateRangeText').textContent = text;
+    }
+
+    // fix: 新增 - 退出登录功能
+    function logout() {
+      // 显示确认对话框
+      if (!confirm('确定要退出登录吗？\n\n退出后将清除当前会话状态并返回登录页面。')) {
+        return;
+      }
+
+      try {
+        // 清除登录状态
+        localStorage.removeItem('adminLoggedIn');
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('adminRole');
+
+        // 显示退出提示
+        alert('已成功退出登录！');
+
+        // 跳转到登录页面
+        window.location.href = 'login-new.html';
+      } catch (e) {
+        console.error('退出登录失败:', e);
+        alert('退出登录失败，请手动刷新页面重试。');
+      }
+    }
+
+    function renderListView(bookings, totalItems) {
       var container = document.getElementById('dataContainer');
 
       if (bookings.length === 0) {
@@ -485,7 +1017,7 @@
       selectedBookings = [];
 
       var html = '';
-      
+
       // 批量操作区域
       html += '<div class="batch-actions" id="batchActions" style="display: none;">';
       html += '<span>已选择 <strong id="selectedCount">0</strong> 条记录</span>';
@@ -501,6 +1033,9 @@
       var statusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
       var weeks = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
+      // fix: 修改 - 使用全局序号，考虑分页
+      var startIndex = (currentPage - 1) * pageSize;
+
       for (var i = 0; i < bookings.length; i++) {
         var b = bookings[i];
         var timeLabel = TIME_SLOTS[b.time_slot]?.label || b.time_slot;
@@ -510,7 +1045,7 @@
 
         html += '<tr>';
         html += '<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" value="' + b.id + '" onclick="toggleRowSelection(' + b.id + ')"></td>';
-        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + (startIndex + i + 1) + '</td>';
         html += '<td>' + b.name + '</td>';
         html += '<td>' + b.phone + '</td>';
         html += '<td>' + (b.position || '-') + '</td>';
@@ -533,6 +1068,12 @@
       }
 
       html += '</tbody></table>';
+
+      // fix: 新增 - 添加分页组件
+      if (totalItems > pageSize) {
+        html += renderPagination(totalItems);
+      }
+
       container.innerHTML = html;
     }
 

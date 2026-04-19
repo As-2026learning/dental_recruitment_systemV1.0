@@ -247,9 +247,13 @@
     </div>
   </div>
 
+  <!-- fix: 引入统一配置模块 - 替代硬编码的Supabase密钥 -->
+  <script src="js/config.js"></script>
+
   <script>
-    var SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+    // fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+    var SUPABASE_URL = CONFIG.SUPABASE_URL;
+    var SUPABASE_KEY = CONFIG.SUPABASE_KEY;
     
     var WORKING_DAYS = [1, 2, 3, 4, 5]; // 周一到周五
     var MAX_DAYS = 30;

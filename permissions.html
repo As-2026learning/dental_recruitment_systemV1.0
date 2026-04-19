@@ -852,7 +852,8 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.href = 'login-new.html';
             }
         }
 
@@ -1055,7 +1056,8 @@
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
             if (!isLoggedIn || !token) {
-                window.location.href = 'login.html';
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.href = 'login-new.html';
                 return;
             }
 

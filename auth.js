@@ -174,8 +174,8 @@
         redirectToLogin: function() {
             // 清除登录状态
             this.logout();
-            // 跳转到登录页
-            window.location.href = 'login.html';
+            // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+            window.location.href = 'login-new.html';
         },
 
         /**

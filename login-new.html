@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #1890ff;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(24, 144, 255, 0.4);
+        }
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .error-message {
+            background: #fff1f0;
+            color: #ff4d4f;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            border: 1px solid #ffccc7;
+        }
+        .error-message.show {
+            display: block;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .login-footer a {
+            color: #1890ff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .info-box {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #096dd9;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🔐 后台管理系统</h1>
+        </div>
+
+        <div class="info-box">
+            💡 首次使用？请联系管理员创建账号
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">邮箱</label>
+                <input type="email" id="email" name="email" placeholder="请输入邮箱" required>
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="btn-login" id="loginBtn">
+                登录
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <a href="candidate-form-complete.html">← 返回应聘页面</a>
+        </div>
+    </div>
+
+    <!-- Supabase SDK - 主 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <!-- fix: 引入统一配置模块 - 替代硬编码的Supabase密钥 -->
+    <script src="js/config.js"></script>
+
+    <script>
+        // fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+        // 初始化 Supabase 客户端
+        let supabaseClient;
+
+        function initSupabase() {
+            try {
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient && typeof CONFIG !== 'undefined') {
+                    supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+                    console.log('✅ Supabase 客户端初始化成功');
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                console.error('❌ Supabase 初始化失败:', e);
+                return false;
+            }
+        }
+        
+        // 尝试初始化
+        if (!initSupabase()) {
+            // 主 CDN 失败，加载备用 CDN
+            console.log('⚠️ 主 CDN 加载失败，尝试备用 CDN...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+            script.onload = function() {
+                console.log('✅ 备用 CDN 加载成功');
+                if (initSupabase()) {
+                    // 重新绑定事件
+                    bindLoginEvent();
+                }
+            };
+            script.onerror = function() {
+                console.error('❌ 备用 CDN 也加载失败');
+                document.getElementById('errorMessage').textContent = '系统加载失败，请检查网络连接后刷新页面';
+                document.getElementById('errorMessage').classList.add('show');
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 绑定登录事件
+        function bindLoginEvent() {
+            document.getElementById('loginForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (!supabaseClient) {
+                    document.getElementById('errorMessage').textContent = '系统初始化中，请稍后再试';
+                    document.getElementById('errorMessage').classList.add('show');
+                    return;
+                }
+                
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const loginBtn = document.getElementById('loginBtn');
+                const errorMessage = document.getElementById('errorMessage');
+                
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<span class="loading"></span>登录中...';
+                errorMessage.classList.remove('show');
+                
+                // 记录登录开始时间
+                const loginStartTime = Date.now();
+                
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+                    
+                    if (error) {
+                        throw error;
+                    }
+                    
+                    if (data.user) {
+                        console.log(`[登录日志] 用户认证成功，用户ID: ${data.user.id}，邮箱: ${data.user.email}`);
+                        
+                        let roleData = null;
+                        let userRole = 'operator';
+                        let lastError = null;
+                        
+                        // 定义获取角色的方法
+                        const fetchRole = async (attempt) => {
+                            try {
+                                console.log(`[角色获取] 尝试 ${attempt}/5，用户ID: ${data.user.id}`);
+                                
+                                const result = await supabaseClient
+                                    .from('user_roles')
+                                    .select('role, name')
+                                    .eq('user_id', data.user.id);
+                                
+                                if (result.error) {
+                                    console.warn(`[角色获取] 尝试 ${attempt} - 直接查询失败: ${result.error.message}`);
+                                    return { success: false, error: result.error };
+                                }
+                                
+                                if (result.data && result.data.length > 0) {
+                                    console.log(`[角色获取] 尝试 ${attempt} - 成功获取角色: ${result.data[0].role}`);
+                                    return { success: true, data: result.data[0] };
+                                }
+                                
+                                console.warn(`[角色获取] 尝试 ${attempt} - 未找到角色记录`);
+                                return { success: false, error: new Error('未找到角色记录') };
+                                
+                            } catch (e) {
+                                console.warn(`[角色获取] 尝试 ${attempt} - 异常: ${e.message}`);
+                                return { success: false, error: e };
+                            }
+                        };
+                        
+                        // 定义通过RPC获取角色的方法
+                        const fetchRoleViaRPC = async (attempt) => {
+                            try {
+                                console.log(`[RPC角色获取] 尝试 ${attempt}/3，用户ID: ${data.user.id}`);
+                                
+                                const rpcResult = await supabaseClient.rpc('get_user_role', { 
+                                    user_id_input: data.user.id 
+                                });
+                                
+                                if (rpcResult.error) {
+                                    console.warn(`[RPC角色获取] 尝试 ${attempt} - RPC调用失败: ${rpcResult.error.message}`);
+                                    return { success: false, error: rpcResult.error };
+                                }
+                                
+                                if (rpcResult.data && rpcResult.data.role) {
+                                    console.log(`[RPC角色获取] 尝试 ${attempt} - 通过RPC成功获取角色: ${rpcResult.data.role}`);
+                                    return { success: true, data: rpcResult.data };
+                                }
+                                
+                                console.warn(`[RPC角色获取] 尝试 ${attempt} - RPC返回空数据`);
+                                return { success: false, error: new Error('RPC返回空数据') };
+                                
+                            } catch (e) {
+                                console.warn(`[RPC角色获取] 尝试 ${attempt} - 异常: ${e.message}`);
+                                return { success: false, error: e };
+                            }
+                        };
+                        
+                        // 主重试循环 - 先尝试直接查询，失败后尝试RPC
+                        for (let attempt = 1; attempt <= 3; attempt++) {
+                            let result = await fetchRole(attempt);
+                            
+                            if (result.success) {
+                                roleData = result.data;
+                                userRole = roleData.role;
+                                break;
+                            }
+                            
+                            lastError = result.error;
+                            
+                            // 如果是权限错误，立即尝试RPC
+                            if (result.error && 
+                                (result.error.message.includes('permission denied') || 
+                                 result.error.code === '42501')) {
+                                console.log('[角色获取] 检测到权限错误，切换到RPC方式');
+                                const rpcResult = await fetchRoleViaRPC(attempt);
+                                if (rpcResult.success) {
+                                    roleData = rpcResult.data;
+                                    userRole = roleData.role;
+                                    lastError = null;
+                                    break;
+                                }
+                                lastError = rpcResult.error;
+                            }
+                            
+                            if (attempt < 3) {
+                                const delay = 500 * attempt;
+                                console.log(`[角色获取] 等待 ${delay}ms 后重试...`);
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                            }
+                        }
+                        
+                        // 检查最终结果
+                        if (!roleData) {
+                            const errorDetails = lastError ? 
+                                `错误详情: ${lastError.message} (代码: ${lastError.code})` : 
+                                '未知错误';
+                            
+                            console.error(`[登录错误] 无法获取角色信息 - 用户ID: ${data.user.id}, 邮箱: ${data.user.email}, ${errorDetails}`);
+                            
+                            const userFriendlyMessage = `警告：无法获取您的角色信息，请联系管理员配置权限。\n\n用户ID: ${data.user.id}\n邮箱: ${data.user.email}\n错误类型: ${lastError?.message || '未知'}`;
+                            
+                            // 使用自定义弹窗替代alert，提供更清晰的错误信息
+                            if (confirm(userFriendlyMessage)) {
+                                // 用户确认后继续，使用默认角色
+                                console.log('[登录日志] 用户确认继续，使用默认角色 operator');
+                            }
+                        }
+                        
+                        const loginDuration = Date.now() - loginStartTime;
+                        console.log(`[登录日志] 登录完成，角色: ${userRole}, 耗时: ${loginDuration}ms`);
+                        
+                        localStorage.setItem('adminLoggedIn', 'true');
+                        localStorage.setItem('adminToken', data.session.access_token);
+                        localStorage.setItem('currentUser', JSON.stringify({
+                            username: data.user.email,
+                            name: roleData?.name || data.user.email,
+                            role: userRole,
+                            email: data.user.email,
+                            user_id: data.user.id,
+                            roleLoaded: roleData ? 'true' : 'false'
+                        }));
+                        
+                        window.location.href = 'admin-standalone.html';
+                    }
+                } catch (error) {
+                    const loginDuration = Date.now() - loginStartTime;
+                    console.error(`[登录错误] 登录失败，耗时: ${loginDuration}ms, 错误: ${error.message}`);
+                    
+                    let errorMsg = '登录失败';
+                    if (error.message.includes('Invalid login credentials')) {
+                        errorMsg = '邮箱或密码错误';
+                    } else if (error.message.includes('Email not confirmed')) {
+                        errorMsg = '邮箱未验证，请检查邮件';
+                    } else if (error.message.includes('User not found')) {
+                        errorMsg = '该邮箱未注册，请联系管理员';
+                    } else {
+                        errorMsg = error.message;
+                    }
+                    
+                    errorMessage.textContent = errorMsg;
+                    errorMessage.classList.add('show');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '登录';
+                }
+            });
+        }
+        
+        // 立即绑定事件（如果 Supabase 已加载）
+        if (typeof window.supabase !== 'undefined') {
+            bindLoginEvent();
+        }
+        
+        // 检查并清除旧会话（强制重新登录）
+        async function checkExistingSession() {
+            // 等待一小段时间确保 Supabase 完全初始化
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 检查 supabaseClient 是否已初始化
+            if (!supabaseClient) {
+                console.log('⏳ Supabase 尚未初始化');
+                return;
+            }
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    console.log('⚠️ 检测到旧会话，强制登出以确保安全登录');
+                    // 强制登出，确保用户必须重新验证
+                    await supabaseClient.auth.signOut();
+                    console.log('✅ 旧会话已清除');
+                }
+            } catch (e) {
+                console.log('检查会话失败:', e);
+            }
+        }
+        
+        // 页面加载完成后检查
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkExistingSession);
+        } else {
+            checkExistingSession();
+        }
+    </script>
+</body>
+</html>

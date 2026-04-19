@@ -24,3 +24,21 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# ==========================================
+# 安全相关 - 敏感信息保护
+# ==========================================
+
+# 环境变量文件（包含Supabase密钥等敏感信息）
+.env
+.env.local
+.env.*.local
+
+# 备份文件
+*.backup
+*.backup.*
+backup_*/
+backup-security-*/
+
+# 安全修复相关备份
+backup_security_fix_*/

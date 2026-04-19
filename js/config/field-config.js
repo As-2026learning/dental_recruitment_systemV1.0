@@ -79,24 +79,26 @@ const DETAIL_FIELDS = {
             { field: 'first_reject_detail', label: '详细说明' }
         ]
     },
+    // fix: 将复试信息重命名为复试/录用信息，合并录用相关信息
     secondInterview: {
-        label: '复试信息',
+        label: '复试/录用信息',
         fields: [
             { field: 'second_interview_time', label: '复试时间', format: 'datetime' },
             { field: 'second_interviewer', label: '复试官' },
             { field: 'second_interview_result', label: '复试结果', format: 'result' },
+            { field: 'second_reject_reason', label: '未通过原因', format: 'secondRejectReason' },
+            { field: 'second_reject_detail', label: '详细说明' },
             { field: 'hire_department', label: '录用部门' },
             { field: 'hire_position', label: '录用岗位' },
             { field: 'job_title', label: '职务' },
             { field: 'job_level', label: '职级' },
             { field: 'hire_salary', label: '录用薪资' },
-            { field: 'accept_offer', label: '是否接受offer', format: 'yesno' },
-            { field: 'offer_reject_reason', label: '拒绝offer原因' },
             { field: 'hire_date', label: '预计入职日期', format: 'date' },
-            { field: 'second_reject_reason', label: '未通过原因', format: 'secondRejectReason' },
-            { field: 'second_reject_detail', label: '详细说明' }
+            { field: 'accept_offer', label: '是否接受offer', format: 'yesno' },
+            { field: 'offer_reject_reason', label: '拒绝offer原因' }
         ]
     },
+    // fix: 移除重复的hireStatus分组，将current_status移到系统信息或作为独立状态展示
     onboarding: {
         label: '报到信息',
         fields: [
@@ -106,17 +108,11 @@ const DETAIL_FIELDS = {
             { field: 'no_report_detail', label: '详细说明' }
         ]
     },
-    hireStatus: {
-        label: '录用状态',
-        fields: [
-            { field: 'accept_offer', label: '是否接受offer', format: 'yesno' },
-            { field: 'offer_reject_reason', label: '拒绝原因' },
-            { field: 'current_status', label: '当前状态', format: 'status' }
-        ]
-    },
+    // fix: 在系统信息中添加当前状态字段
     system: {
         label: '系统信息',
         fields: [
+            { field: 'current_status', label: '当前状态', format: 'status' },
             { field: 'created_at', label: '创建时间', format: 'datetime' },
             { field: 'updated_at', label: '更新时间', format: 'datetime' },
             { field: 'source_type', label: '数据来源', format: 'sourceType' },
@@ -137,8 +133,8 @@ const EXPORT_FIELDS = [
     { field: 'id_card', label: '身份证号' },
     { field: 'age', label: '年龄' },
     { field: 'position', label: '应聘岗位' },
-    { field: 'position_id', label: '岗位ID' },
-    { field: 'position_name', label: '岗位名称' },
+    // { field: 'position_id', label: '岗位ID' }, // 数据为空，暂时隐藏
+    // { field: 'position_name', label: '岗位名称' }, // 数据为空，暂时隐藏
     { field: 'job_type', label: '工种' },
     { field: 'education', label: '学历' },
     { field: 'experience', label: '工作经验' },

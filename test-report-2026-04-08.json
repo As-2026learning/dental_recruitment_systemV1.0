@@ -1,0 +1,67 @@
+{
+  "testDate": "2026-04-08T14:31:13.941Z",
+  "summary": {
+    "total": 10,
+    "passed": 6,
+    "failed": 4,
+    "passRate": "60.00",
+    "duration": "0.74"
+  },
+  "details": [
+    {
+      "name": "API-001: Supabase API 连接测试",
+      "status": "failed",
+      "details": "响应时间: 316.80ms"
+    },
+    {
+      "name": "API-002: 数据查询测试",
+      "status": "failed",
+      "details": "HTTP 401: "
+    },
+    {
+      "name": "AUTH-001: 登录状态验证",
+      "status": "failed",
+      "details": "登录状态: false, Token: false, 用户信息: false"
+    },
+    {
+      "name": "DATA-001: LocalStorage 读写测试",
+      "status": "passed",
+      "details": "读写操作正常"
+    },
+    {
+      "name": "DATA-002: 必要登录数据检查",
+      "status": "failed",
+      "details": "缺少: adminLoggedIn, adminToken, currentUser"
+    },
+    {
+      "name": "PERF-001: 页面加载时间",
+      "status": "passed",
+      "details": "265ms (达标)"
+    },
+    {
+      "name": "PERF-002: DOM 准备时间",
+      "status": "passed",
+      "details": "234ms (达标)"
+    },
+    {
+      "name": "PERF-003: JavaScript 内存占用",
+      "status": "passed",
+      "details": "已用: 9.54MB / 总计: 9.54MB"
+    },
+    {
+      "name": "EDGE-001: XSS 防护测试",
+      "status": "passed",
+      "details": "特殊字符需要转义"
+    },
+    {
+      "name": "EDGE-002: 超长字符串处理",
+      "status": "passed",
+      "details": "系统应限制或截断超长输入"
+    }
+  ],
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0",
+    "platform": "Win32",
+    "language": "zh-CN"
+  }
+}

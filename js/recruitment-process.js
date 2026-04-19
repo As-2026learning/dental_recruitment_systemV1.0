@@ -2,9 +2,9 @@
  * 招聘流程管理模块 - 主页面逻辑
  */
 
-// 使用项目统一的Supabase配置 (从config.js获取)
-const RECRUITMENT_SUPABASE_URL = window.SUPABASE_URL || 'https://your-project.supabase.co';
-const RECRUITMENT_SUPABASE_KEY = window.SUPABASE_ANON_KEY || 'your-anon-key';
+// fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+const RECRUITMENT_SUPABASE_URL = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_URL : 'https://your-project.supabase.co';
+const RECRUITMENT_SUPABASE_KEY = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_KEY : 'your-anon-key';
 
 // 初始化Supabase客户端
 const recruitmentSupabase = window.supabase.createClient(RECRUITMENT_SUPABASE_URL, RECRUITMENT_SUPABASE_KEY);
@@ -488,6 +488,9 @@ function bindEvents() {
     // 数据质量检查按钮
     document.getElementById('btnDataQuality').addEventListener('click', handleDataQualityCheck);
 
+    // 修复数据状态按钮
+    document.getElementById('btnFixData')?.addEventListener('click', handleFixData);
+
     // 批量删除按钮
     document.getElementById('btnBatchDelete').addEventListener('click', handleBatchDelete);
 
@@ -765,6 +768,37 @@ async function handleDataQualityCheck() {
         await dataQualityChecker.showReportModal();
     } else {
         alert('数据质量检查工具未初始化');
+    }
+}
+
+/**
+ * 处理修复数据状态
+ * 根据 first_interview_result、second_interview_result 等字段重新计算 current_stage 和 current_status
+ */
+async function handleFixData() {
+    if (!confirm('确定要修复数据状态吗？这将根据面试结果、录用状态等重新计算当前环节和状态。')) {
+        return;
+    }
+
+    console.log('开始修复数据状态...');
+    showLoading();
+    
+    try {
+        const result = await dataManager.fixHistoricalData();
+        
+        if (result.success) {
+            alert(result.message);
+            console.log('修复完成:', result);
+            // 修复完成后刷新数据
+            await loadData();
+        } else {
+            alert('修复失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('修复数据状态失败:', error);
+        alert('修复失败: ' + error.message);
+    } finally {
+        hideLoading();
     }
 }
 

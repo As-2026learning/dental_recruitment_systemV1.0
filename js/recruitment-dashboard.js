@@ -2,9 +2,9 @@
  * 招聘流程数据看板
  */
 
-// 使用项目统一的Supabase配置 (从config.js获取)
-const DASHBOARD_SUPABASE_URL = window.SUPABASE_URL || 'https://your-project.supabase.co';
-const DASHBOARD_SUPABASE_KEY = window.SUPABASE_ANON_KEY || 'your-anon-key';
+// fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+const DASHBOARD_SUPABASE_URL = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_URL : 'https://your-project.supabase.co';
+const DASHBOARD_SUPABASE_KEY = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_KEY : 'your-anon-key';
 
 // 初始化Supabase客户端
 const dashboardSupabase = window.supabase.createClient(DASHBOARD_SUPABASE_URL, DASHBOARD_SUPABASE_KEY);

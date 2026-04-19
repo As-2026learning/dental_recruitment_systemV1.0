@@ -610,11 +610,11 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                // 跳转到登录页
-                window.location.replace('login.html');
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.replace('login-new.html');
                 return;
             }
-            
+
             // 验证用户信息格式
             try {
                 const currentUser = JSON.parse(currentUserStr);
@@ -626,7 +626,8 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.replace('login-new.html');
                 return;
             }
         })();
@@ -855,9 +856,15 @@
             </div>
 
             <!-- 操作按钮 -->
-            <div class="action-buttons" style="margin-top: 24px; text-align: center;">
+            <div class="action-buttons" style="margin-top: 24px; text-align: center; display: flex; gap: 12px; justify-content: center;">
                 <button class="btn btn-success" id="exportData">
                     📊 导出数据
+                </button>
+                <button class="btn btn-primary" id="refreshData" onclick="loadDashboardData(true)">
+                    🔄 刷新数据
+                </button>
+                <button class="btn btn-warning" id="clearCache" onclick="clearDataCache(); location.reload();">
+                    🗑️ 清除缓存
                 </button>
             </div>
         </div>
@@ -876,8 +883,8 @@
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('userRole');
-                // 跳转到登录页
-                window.location.href = 'login.html';
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.href = 'login-new.html';
             }
         }
     </script>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录功能修复测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .test-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .test-success { background-color: #e8f5e9; color: #388e3c; }
+        .test-failure { background-color: #ffebee; color: #c62828; }
+        .test-info { background-color: #e3f2fd; color: #1976d2; }
+        button { padding: 10px 20px; margin-right: 10px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1976d2; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input { padding: 10px; margin: 5px; width: 300px; border: 1px solid #ccc; border-radius: 4px; }
+        .form-group { margin: 10px 0; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🔐 登录功能修复测试</h1>
+    <p>本页面用于测试新创建用户的登录功能是否正常工作</p>
+
+    <div class="test-section">
+        <div class="test-title">1. 创建测试用户</div>
+        <div class="form-group">
+            <label>用户名 (邮箱):</label><br>
+            <input type="email" id="testEmail" placeholder="test@example.com" value="testuser@example.com">
+        </div>
+        <div class="form-group">
+            <label>姓名:</label><br>
+            <input type="text" id="testName" placeholder="测试用户" value="测试用户">
+        </div>
+        <div class="form-group">
+            <label>密码:</label><br>
+            <input type="password" id="testPassword" placeholder="密码">
+        </div>
+        <div class="form-group">
+            <label>角色:</label><br>
+            <select id="testRole">
+                <option value="operator">操作员</option>
+                <option value="admin">管理员</option>
+            </select>
+        </div>
+        <button onclick="createTestUser()">创建测试用户</button>
+        <div id="create-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">2. 测试登录</div>
+        <div class="form-group">
+            <label>邮箱:</label><br>
+            <input type="email" id="loginEmail" placeholder="请输入邮箱">
+        </div>
+        <div class="form-group">
+            <label>密码:</label><br>
+            <input type="password" id="loginPassword" placeholder="请输入密码">
+        </div>
+        <button onclick="testLogin()">测试登录</button>
+        <div id="login-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">3. 当前登录状态</div>
+        <button onclick="checkLoginStatus()">检查登录状态</button>
+        <button onclick="logout()">退出登录</button>
+        <div id="status-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">4. 本地存储内容</div>
+        <button onclick="showLocalStorage()">显示本地存储</button>
+        <pre id="localstorage-content"></pre>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        let supabaseClient;
+
+        // 初始化
+        async function init() {
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('✅ Supabase 初始化成功');
+            } catch (e) {
+                console.error('❌ Supabase 初始化失败:', e);
+            }
+        }
+
+        // 创建测试用户
+        async function createTestUser() {
+            if (!supabaseClient) {
+                document.getElementById('create-result').innerHTML = '<div class="test-failure">❌ Supabase 未初始化</div>';
+                return;
+            }
+
+            const email = document.getElementById('testEmail').value;
+            const name = document.getElementById('testName').value;
+            const password = document.getElementById('testPassword').value || '12345678';
+            const role = document.getElementById('testRole').value;
+
+            if (!email || !name) {
+                document.getElementById('create-result').innerHTML = '<div class="test-failure">❌ 请填写完整信息</div>';
+                return;
+            }
+
+            try {
+                // 使用客户端 signUp API 创建用户
+                console.log('正在创建用户:', email);
+                const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    throw authError;
+                }
+
+                if (!authData.user) {
+                    throw new Error('未返回用户信息');
+                }
+
+                console.log('用户创建成功，ID:', authData.user.id);
+
+                // 尝试自动确认邮箱（通过更新 auth.users 表）
+                try {
+                    const { error: confirmError } = await supabaseClient.rpc('confirm_email', { 
+                        user_email: email 
+                    });
+                    if (confirmError) {
+                        console.warn('自动确认邮箱失败:', confirmError.message);
+                        // 尝试直接更新用户状态
+                        await supabaseClient.from('auth.users')
+                            .update({ email_confirmed_at: new Date().toISOString() })
+                            .eq('email', email);
+                    } else {
+                        console.log('邮箱已自动确认');
+                    }
+                } catch (e) {
+                    console.warn('自动确认邮箱失败:', e.message);
+                }
+
+                // 插入角色记录
+                const { error: roleError } = await supabaseClient
+                    .from('user_roles')
+                    .insert({
+                        user_id: authData.user.id,
+                        role: role,
+                        name: name
+                    });
+
+                if (roleError) {
+                    // 清理已创建的用户（使用客户端 API）
+                    await supabaseClient.auth.signOut();
+                    throw roleError;
+                }
+
+                document.getElementById('create-result').innerHTML = `
+                    <div class="test-success">✅ 用户创建成功！</div>
+                    <div class="test-info">用户ID: ${authData.user.id}</div>
+                    <div class="test-info">邮箱: ${email}</div>
+                    <div class="test-info">角色: ${role}</div>
+                `;
+
+                // 自动填充登录表单
+                document.getElementById('loginEmail').value = email;
+                document.getElementById('loginPassword').value = password;
+
+            } catch (e) {
+                console.error('创建用户失败:', e);
+                document.getElementById('create-result').innerHTML = `<div class="test-failure">❌ 创建用户失败: ${e.message}</div>`;
+            }
+        }
+
+        // 测试登录
+        async function testLogin() {
+            if (!supabaseClient) {
+                document.getElementById('login-result').innerHTML = '<div class="test-failure">❌ Supabase 未初始化</div>';
+                return;
+            }
+
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                document.getElementById('login-result').innerHTML = '<div class="test-failure">❌ 请填写邮箱和密码</div>';
+                return;
+            }
+
+            try {
+                console.log('正在登录:', email);
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data.user) {
+                    throw new Error('登录失败');
+                }
+
+                // 获取角色信息
+                const roleResult = await supabaseClient
+                    .from('user_roles')
+                    .select('role, name')
+                    .eq('user_id', data.user.id);
+
+                const roleData = roleResult.data && roleResult.data.length > 0 ? roleResult.data[0] : null;
+
+                // 保存登录状态
+                localStorage.setItem('adminLoggedIn', 'true');
+                localStorage.setItem('adminToken', data.session.access_token);
+                localStorage.setItem('currentUser', JSON.stringify({
+                    username: data.user.email,
+                    name: roleData?.name || data.user.email,
+                    role: roleData?.role || 'operator',
+                    email: data.user.email,
+                    user_id: data.user.id
+                }));
+
+                document.getElementById('login-result').innerHTML = `
+                    <div class="test-success">✅ 登录成功！</div>
+                    <div class="test-info">用户: ${data.user.email}</div>
+                    <div class="test-info">角色: ${roleData?.role || 'operator'}</div>
+                    <div class="test-info">姓名: ${roleData?.name || '未设置'}</div>
+                `;
+
+                checkLoginStatus();
+
+            } catch (e) {
+                console.error('登录失败:', e);
+                let errorMsg = e.message;
+                if (errorMsg.includes('Invalid login credentials')) {
+                    errorMsg = '邮箱或密码错误';
+                } else if (errorMsg.includes('Email not confirmed')) {
+                    errorMsg = '邮箱未验证';
+                }
+                document.getElementById('login-result').innerHTML = `<div class="test-failure">❌ 登录失败: ${errorMsg}</div>`;
+            }
+        }
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+            const token = localStorage.getItem('adminToken');
+            const currentUser = localStorage.getItem('currentUser');
+
+            if (isLoggedIn && token && currentUser) {
+                const user = JSON.parse(currentUser);
+                document.getElementById('status-result').innerHTML = `
+                    <div class="test-success">✅ 已登录</div>
+                    <div class="test-info">用户名: ${user.username}</div>
+                    <div class="test-info">姓名: ${user.name}</div>
+                    <div class="test-info">角色: ${user.role}</div>
+                `;
+            } else {
+                document.getElementById('status-result').innerHTML = '<div class="test-info">ℹ️ 未登录</div>';
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('currentUser');
+            document.getElementById('status-result').innerHTML = '<div class="test-info">ℹ️ 已退出登录</div>';
+            document.getElementById('login-result').innerHTML = '';
+        }
+
+        // 显示本地存储
+        function showLocalStorage() {
+            const content = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                let value = localStorage.getItem(key);
+                try {
+                    value = JSON.stringify(JSON.parse(value), null, 2);
+                } catch (e) {
+                    // 不是JSON
+                }
+                content[key] = value;
+            }
+            document.getElementById('localstorage-content').textContent = JSON.stringify(content, null, 2);
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

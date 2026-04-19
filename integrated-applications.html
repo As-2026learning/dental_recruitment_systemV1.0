@@ -6,6 +6,8 @@
     <title>应聘信息综合管理 - 义齿工厂招聘系统</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- fix: 引入统一配置模块 - 必须在CONFIG使用之前加载 -->
+    <script src="js/config.js"></script>
     <style>
         * {
             margin: 0;
@@ -80,6 +82,38 @@
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        // fix: 统计卡片点击交互样式 - 支持卡片与数据联动筛选
+        .stat-card {
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card.active {
+            border: 2px solid #667eea;
+            background: linear-gradient(135deg, #f8f9ff 0%, #eef1ff 100%);
+        }
+
+        .stat-card.active::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-card.active .stat-value {
+            color: #667eea;
         }
         
         .stat-value {
@@ -753,25 +787,25 @@
 
     <!-- 统计卡片 -->
     <div class="stats-container">
-        <div class="stat-card">
+        <div class="stat-card" data-filter="all" onclick="filterByCard('all')">
             <div class="stat-value" id="totalApplications">0</div>
             <div class="stat-label">总应聘数</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="pending" onclick="filterByCard('pending')">
             <div class="stat-value" id="pendingApplications">0</div>
             <div class="stat-label">待处理</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value" id="totalBookings">0</div>
-            <div class="stat-label">已预约面试</div>
+        <div class="stat-card" data-filter="rejected" onclick="filterByCard('rejected')">
+            <div class="stat-value" id="rejectedApplications">0</div>
+            <div class="stat-label">失约</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="today" onclick="filterByCard('today')">
             <div class="stat-value" id="todayBookings">0</div>
             <div class="stat-label">今日面试</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value" id="confirmedBookings">0</div>
-            <div class="stat-label">已确认面试</div>
+        <div class="stat-card" data-filter="processed" onclick="filterByCard('processed')">
+            <div class="stat-value" id="processedApplications">0</div>
+            <div class="stat-label">已面试</div>
         </div>
     </div>
 
@@ -797,8 +831,8 @@
                     <select id="filterStatus">
                         <option value="">全部状态</option>
                         <option value="pending">待处理</option>
-                        <option value="processed">已处理</option>
-                        <option value="rejected">已拒绝</option>
+                        <option value="processed">已面试</option>
+                        <option value="rejected">失约</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -814,7 +848,9 @@
                 </div>
                 <div class="filter-group">
                     <label>面试日期:</label>
-                    <input type="date" id="filterBookingDate">
+                    <input type="date" id="filterBookingStartDate">
+                    <span>至</span>
+                    <input type="date" id="filterBookingEndDate">
                 </div>
             </div>
             <div class="filter-row">
@@ -929,10 +965,11 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.replace('login-new.html');
                 return;
             }
-            
+
             // 验证用户信息格式
             try {
                 const currentUser = JSON.parse(currentUserStr);
@@ -944,7 +981,8 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.replace('login-new.html');
                 return;
             }
         })();
@@ -956,15 +994,16 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                
-                // 跳转到登录页面
-                window.location.href = 'login.html';
+
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.href = 'login-new.html';
             }
         }
 
         // ==================== 配置 ====================
-        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        // fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+        const SUPABASE_URL = CONFIG.SUPABASE_URL;
+        const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
         
         // ==================== 全局变量 ====================
         var supabaseClient = null;
@@ -974,6 +1013,9 @@
         var pageSize = parseInt(localStorage.getItem('applicationsPageSize')) || 20; // 从本地存储读取用户偏好，默认20
         var sortField = 'created_at';
         var sortDirection = 'desc';
+        
+        // fix: 新增 - 当前激活的统计卡片筛选条件，用于卡片与数据联动
+        var activeCardFilter = null; // 可能的值: null, 'all', 'pending', 'has_booking', 'today', 'confirmed'
         
         // 时段映射 - 与预约管理模块保持一致
         var TIME_SLOTS = {
@@ -1216,25 +1258,108 @@
         // ==================== 更新统计 ====================
         function updateStats() {
             const today = new Date().toISOString().split('T')[0];
-            
+
             document.getElementById('totalApplications').textContent = allApplications.length;
-            document.getElementById('pendingApplications').textContent = 
+            document.getElementById('pendingApplications').textContent =
                 allApplications.filter(a => a.status === 'pending').length;
-            document.getElementById('totalBookings').textContent = 
-                allApplications.filter(a => a.booking).length;
-            document.getElementById('todayBookings').textContent = 
+            document.getElementById('rejectedApplications').textContent =
+                allApplications.filter(a => a.status === 'rejected').length;
+            document.getElementById('todayBookings').textContent =
                 allApplications.filter(a => a.booking && a.booking.booking_date === today).length;
-            document.getElementById('confirmedBookings').textContent = 
-                allApplications.filter(a => a.booking && a.booking.status === 'confirmed').length;
+            document.getElementById('processedApplications').textContent =
+                allApplications.filter(a => a.status === 'processed').length;
         }
         
+        // ==================== 统计卡片筛选功能 ====================
+        // fix: 新增 - 实现卡片点击与数据联动筛选功能
+
+        /**
+         * 根据统计卡片筛选数据
+         * @param {string} filterType - 筛选类型: 'all', 'pending', 'rejected', 'today', 'processed'
+         */
+        function filterByCard(filterType) {
+            // 记录当前激活的卡片筛选条件
+            activeCardFilter = filterType;
+
+            // 更新卡片视觉状态
+            updateCardVisualState(filterType);
+
+            // 根据卡片类型设置筛选条件
+            switch (filterType) {
+                case 'all':
+                    // 总应聘数 - 清空所有筛选条件
+                    resetFilters(false); // false 表示不重置卡片状态
+                    break;
+
+                case 'pending':
+                    // 待处理 - 设置应聘状态为 pending
+                    document.getElementById('filterStatus').value = 'pending';
+                    document.getElementById('filterBookingStatus').value = '';
+                    document.getElementById('filterBookingStartDate').value = '';
+                    document.getElementById('filterBookingEndDate').value = '';
+                    break;
+
+                case 'rejected':
+                    // 失约 - 设置应聘状态为 rejected
+                    document.getElementById('filterStatus').value = 'rejected';
+                    document.getElementById('filterBookingStatus').value = '';
+                    document.getElementById('filterBookingStartDate').value = '';
+                    document.getElementById('filterBookingEndDate').value = '';
+                    break;
+
+                case 'today':
+                    // 今日面试 - 设置面试日期范围为今天
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('filterStatus').value = '';
+                    document.getElementById('filterBookingStatus').value = '';
+                    document.getElementById('filterBookingStartDate').value = today;
+                    document.getElementById('filterBookingEndDate').value = today;
+                    break;
+
+                case 'processed':
+                    // 已面试 - 设置应聘状态为 processed
+                    document.getElementById('filterStatus').value = 'processed';
+                    document.getElementById('filterBookingStatus').value = '';
+                    document.getElementById('filterBookingStartDate').value = '';
+                    document.getElementById('filterBookingEndDate').value = '';
+                    break;
+            }
+
+            // 执行筛选
+            applyFilters();
+
+            // 重置到第一页
+            currentPage = 1;
+            renderTable();
+        }
+
+        /**
+         * 更新统计卡片视觉状态
+         * @param {string} activeFilter - 当前激活的筛选类型
+         */
+        function updateCardVisualState(activeFilter) {
+            // 移除所有卡片的激活状态
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // 为当前激活的卡片添加激活状态
+            if (activeFilter) {
+                const activeCard = document.querySelector(`.stat-card[data-filter="${activeFilter}"]`);
+                if (activeCard) {
+                    activeCard.classList.add('active');
+                }
+            }
+        }
+
         // ==================== 筛选功能 ====================
         function applyFilters() {
             const positionFilter = document.getElementById('filterPosition').value;
             const jobTypeFilter = document.getElementById('filterJobType').value;
             const statusFilter = document.getElementById('filterStatus').value;
             const bookingStatusFilter = document.getElementById('filterBookingStatus').value;
-            const bookingDateFilter = document.getElementById('filterBookingDate').value;
+            const bookingStartDate = document.getElementById('filterBookingStartDate').value;
+            const bookingEndDate = document.getElementById('filterBookingEndDate').value;
             const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
             const startDate = document.getElementById('filterStartDate').value;
             const endDate = document.getElementById('filterEndDate').value;
@@ -1285,9 +1410,13 @@
                     }
                 }
                 
-                // 面试日期筛选
-                if (bookingDateFilter && app.booking) {
-                    if (app.booking.booking_date !== bookingDateFilter) return false;
+                // 面试日期范围筛选
+                if (bookingStartDate || bookingEndDate) {
+                    if (!app.booking) return false;
+                    const bookingDate = app.booking.booking_date;
+                    if (!bookingDate) return false;
+                    if (bookingStartDate && bookingDate < bookingStartDate) return false;
+                    if (bookingEndDate && bookingDate > bookingEndDate) return false;
                 }
                 
                 // 申请时间范围筛选
@@ -1326,15 +1455,27 @@
             renderTable();
         }
         
-        function resetFilters() {
+        /**
+         * 重置筛选条件
+         * @param {boolean} resetCard - 是否重置卡片状态，默认为 true
+         */
+        function resetFilters(resetCard = true) {
             document.getElementById('filterPosition').value = '';
             document.getElementById('filterJobType').value = '';
             document.getElementById('filterStatus').value = '';
             document.getElementById('filterBookingStatus').value = '';
-            document.getElementById('filterBookingDate').value = '';
+            document.getElementById('filterBookingStartDate').value = '';
+            document.getElementById('filterBookingEndDate').value = '';
             document.getElementById('filterSearch').value = '';
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
+
+            // fix: 重置卡片筛选状态
+            if (resetCard) {
+                activeCardFilter = null;
+                updateCardVisualState(null);
+            }
+
             applyFilters();
         }
         
@@ -1415,7 +1556,7 @@
             document.getElementById('totalRecords').textContent = filteredApplications.length;
             document.getElementById('currentRange').textContent = `显示第 ${start + 1}-${end} 条`;
             
-            const statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
+            const statusMap = { 'pending': '待处理', 'processed': '已面试', 'rejected': '失约' };
             const bookingStatusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
             
             let html = `
@@ -2253,7 +2394,7 @@
             overlay.classList.add('show');
             
             try {
-                const statusMap = { 'pending': '待处理', 'processed': '已处理', 'rejected': '已拒绝' };
+                const statusMap = { 'pending': '待处理', 'processed': '已面试', 'rejected': '失约' };
                 const bookingStatusMap = { 'pending': '待确认', 'confirmed': '已确认', 'cancelled': '已取消' };
                 
                 const exportData = appsToExport.map((app, index) => {

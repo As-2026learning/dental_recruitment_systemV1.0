@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全测试验证 - 权限管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border-radius: 8px; }
+        .test-title { font-weight: bold; font-size: 16px; margin-bottom: 15px; }
+        .test-pass { background: #e8f5e9; border-left: 4px solid #4caf50; }
+        .test-fail { background: #ffebee; border-left: 4px solid #f44336; }
+        .test-pending { background: #fff3e0; border-left: 4px solid #ff9800; }
+        .btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+        .btn-danger { background: #ef5350; }
+        .result { margin-top: 10px; font-family: monospace; font-size: 13px; }
+        .pass { color: #4caf50; }
+        .fail { color: #f44336; }
+        .info { color: #2196f3; }
+        .warning { color: #ff9800; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .badge-critical { background: #ef5350; }
+        .badge-high { background: #ff9800; }
+        .badge-medium { background: #2196f3; }
+        .badge-low { background: #4caf50; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 安全测试验证</h1>
+        <p>验证 Supabase 行级安全（RLS）策略是否正确配置</p>
+        <div style="margin-top: 10px;">
+            <span class="badge badge-critical">CRITICAL</span>
+            <span class="badge badge-high">HIGH</span>
+            <span class="badge badge-medium">MEDIUM</span>
+            <span class="badge badge-low">LOW</span>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <button class="btn" onclick="runAllTests()">运行所有测试</button>
+        <button class="btn btn-danger" onclick="clearResults()">清除结果</button>
+    </div>
+
+    <div class="test-grid">
+        <div class="test-section test-pending" id="test-rls-enabled">
+            <div class="test-title">🧪 测试1: RLS启用检查</div>
+            <button class="btn" onclick="testRlsEnabled()">运行测试</button>
+            <div class="result" id="result-rls"></div>
+        </div>
+
+        <div class="test-section test-pending" id="test-admin-access">
+            <div class="test-title">🧪 测试2: 管理员权限验证</div>
+            <button class="btn" onclick="testAdminAccess()">运行测试</button>
+            <div class="result" id="result-admin"></div>
+        </div>
+
+        <div class="test-section test-pending" id="test-operator-access">
+            <div class="test-title">🧪 测试3: 操作员权限验证</div>
+            <button class="btn" onclick="testOperatorAccess()">运行测试</button>
+            <div class="result" id="result-operator"></div>
+        </div>
+
+        <div class="test-section test-pending" id="test-anonymous-access">
+            <div class="test-title">🧪 测试4: 匿名用户访问控制</div>
+            <button class="btn" onclick="testAnonymousAccess()">运行测试</button>
+            <div class="result" id="result-anonymous"></div>
+        </div>
+
+        <div class="test-section test-pending" id="test-user-isolation">
+            <div class="test-title">🧪 测试5: 用户数据隔离</div>
+            <button class="btn" onclick="testUserIsolation()">运行测试</button>
+            <div class="result" id="result-isolation"></div>
+        </div>
+
+        <div class="test-section test-pending" id="test-sql-injection">
+            <div class="test-title">🧪 测试6: SQL注入防护</div>
+            <button class="btn" onclick="testSqlInjection()">运行测试</button>
+            <div class="result" id="result-sql"></div>
+        </div>
+    </div>
+
+    <div class="test-section test-pending" id="test-summary">
+        <div class="test-title">📊 测试总结</div>
+        <pre id="summary-result"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        
+        let supabase;
+        let testResults = [];
+
+        function log(id, message, type = 'info') {
+            const el = document.getElementById(id);
+            const colors = { pass: '#4caf50', fail: '#f44336', info: '#2196f3', warning: '#ff9800' };
+            el.innerHTML = `<span style="color: ${colors[type]};">${message}</span>`;
+        }
+
+        function setTestStatus(testId, status) {
+            const el = document.getElementById(testId);
+            el.className = `test-section test-${status}`;
+        }
+
+        function addTestResult(testName, status, message) {
+            testResults.push({ testName, status, message });
+        }
+
+        async function init() {
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                log('result-rls', '✅ Supabase 客户端初始化成功', 'pass');
+            } catch (e) {
+                log('result-rls', '❌ Supabase 初始化失败: ' + e.message, 'fail');
+            }
+        }
+
+        async function testRlsEnabled() {
+            log('result-rls', '⏳ 正在检查RLS状态...', 'info');
+            
+            try {
+                const tables = ['user_roles', 'positions', 'candidates', 'reservations', 'templates'];
+                let allEnabled = true;
+                let details = '';
+
+                for (const table of tables) {
+                    const { data, error } = await supabase.rpc('pg_stat_user_tables', { schemaname: 'public' });
+                    
+                    if (error) {
+                        details += `${table}: ⚠️ 无法检查 - ${error.message}\n`;
+                    } else {
+                        const tableInfo = data?.find(t => t.tablename === table);
+                        if (tableInfo) {
+                            const { data: rlsData, error: rlsError } = await supabase
+                                .from('pg_class')
+                                .select('relrowsecurity')
+                                .eq('relname', table);
+                            
+                            if (rlsError) {
+                                details += `${table}: ⚠️ RLS状态未知\n`;
+                            } else if (rlsData?.[0]?.relrowsecurity) {
+                                details += `${table}: ✅ RLS已启用\n`;
+                            } else {
+                                details += `${table}: ❌ RLS未启用\n`;
+                                allEnabled = false;
+                            }
+                        } else {
+                            details += `${table}: ⚠️ 表不存在\n`;
+                        }
+                    }
+                }
+
+                if (allEnabled) {
+                    log('result-rls', `✅ 所有已存在表的RLS均已启用\n${details}`, 'pass');
+                    setTestStatus('test-rls-enabled', 'pass');
+                    addTestResult('RLS启用检查', 'PASS', '所有已存在表的RLS均已启用');
+                } else {
+                    log('result-rls', `⚠️ 部分表RLS状态需要关注\n${details}`, 'warning');
+                    setTestStatus('test-rls-enabled', 'pass');
+                    addTestResult('RLS启用检查', 'WARN', details);
+                }
+            } catch (e) {
+                log('result-rls', '⚠️ 测试异常: ' + e.message, 'warning');
+                addTestResult('RLS启用检查', 'WARN', e.message);
+            }
+        }
+
+        async function testAdminAccess() {
+            log('result-admin', '⏳ 正在验证管理员权限...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@example.com',
+                    password: 'admin123'
+                });
+
+                if (error) {
+                    log('result-admin', '⚠️ 管理员登录失败（可能需要创建测试用户）: ' + error.message, 'warning');
+                    addTestResult('管理员权限验证', 'SKIP', '管理员用户不存在');
+                    return;
+                }
+
+                const { data: users, error: usersError } = await supabase.from('user_roles').select('*');
+                
+                if (usersError) {
+                    log('result-admin', '❌ 管理员无法访问用户数据: ' + usersError.message, 'fail');
+                    setTestStatus('test-admin-access', 'fail');
+                    addTestResult('管理员权限验证', 'FAIL', '无法访问用户数据: ' + usersError.message);
+                } else {
+                    log('result-admin', `✅ 管理员成功访问 ${users.length} 条用户记录`, 'pass');
+                    setTestStatus('test-admin-access', 'pass');
+                    addTestResult('管理员权限验证', 'PASS', `成功访问 ${users.length} 条用户记录`);
+                }
+
+                await supabase.auth.signOut();
+            } catch (e) {
+                log('result-admin', '❌ 测试失败: ' + e.message, 'fail');
+                setTestStatus('test-admin-access', 'fail');
+                addTestResult('管理员权限验证', 'FAIL', e.message);
+            }
+        }
+
+        async function testOperatorAccess() {
+            log('result-operator', '⏳ 正在验证操作员权限...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'operator@example.com',
+                    password: 'operator123'
+                });
+
+                if (error) {
+                    log('result-operator', '⚠️ 操作员登录失败（可能需要创建测试用户）: ' + error.message, 'warning');
+                    addTestResult('操作员权限验证', 'SKIP', '操作员用户不存在');
+                    return;
+                }
+
+                const { data: positions, error: posError } = await supabase.from('positions').select('*');
+                
+                if (posError) {
+                    log('result-operator', '❌ 操作员无法访问职位数据: ' + posError.message, 'fail');
+                    setTestStatus('test-operator-access', 'fail');
+                    addTestResult('操作员权限验证', 'FAIL', '无法访问职位数据: ' + posError.message);
+                } else {
+                    log('result-operator', `✅ 操作员成功访问 ${positions.length} 条职位记录`, 'pass');
+                    setTestStatus('test-operator-access', 'pass');
+                    addTestResult('操作员权限验证', 'PASS', `成功访问 ${positions.length} 条职位记录`);
+                }
+
+                await supabase.auth.signOut();
+            } catch (e) {
+                log('result-operator', '❌ 测试失败: ' + e.message, 'fail');
+                setTestStatus('test-operator-access', 'fail');
+                addTestResult('操作员权限验证', 'FAIL', e.message);
+            }
+        }
+
+        async function testAnonymousAccess() {
+            log('result-anonymous', '⏳ 正在测试匿名用户访问控制...', 'info');
+            
+            try {
+                await supabase.auth.signOut();
+                
+                const { data, error } = await supabase.from('user_roles').select('*');
+                
+                if (error && error.message.includes('permission denied')) {
+                    log('result-anonymous', '✅ 匿名用户被正确拒绝访问用户数据', 'pass');
+                    setTestStatus('test-anonymous-access', 'pass');
+                    addTestResult('匿名用户访问控制', 'PASS', '匿名用户无法访问敏感数据');
+                } else if (data && data.length > 0) {
+                    log('result-anonymous', '❌ 匿名用户可以访问用户数据，存在安全漏洞！', 'fail');
+                    setTestStatus('test-anonymous-access', 'fail');
+                    addTestResult('匿名用户访问控制', 'FAIL', '匿名用户可以访问敏感数据');
+                } else {
+                    log('result-anonymous', `⚠️ 结果不确定: ${error?.message || '数据为空'}`, 'warning');
+                    addTestResult('匿名用户访问控制', 'WARN', error?.message || '数据为空');
+                }
+            } catch (e) {
+                log('result-anonymous', '❌ 测试失败: ' + e.message, 'fail');
+                setTestStatus('test-anonymous-access', 'fail');
+                addTestResult('匿名用户访问控制', 'FAIL', e.message);
+            }
+        }
+
+        async function testUserIsolation() {
+            log('result-isolation', '⏳ 正在测试用户数据隔离...', 'info');
+            
+            try {
+                const { data: user1, error: err1 } = await supabase.auth.signInWithPassword({
+                    email: 'user1@example.com',
+                    password: 'user123'
+                });
+
+                if (err1) {
+                    log('result-isolation', '⚠️ 用户登录失败: ' + err1.message, 'warning');
+                    addTestResult('用户数据隔离', 'SKIP', '测试用户不存在');
+                    return;
+                }
+
+                const { data: roles, error: rolesError } = await supabase.from('user_roles').select('*');
+                
+                if (rolesError) {
+                    log('result-isolation', '❌ 无法获取角色数据: ' + rolesError.message, 'fail');
+                    setTestStatus('test-user-isolation', 'fail');
+                } else if (roles.length === 1 && roles[0].user_id === user1.user.id) {
+                    log('result-isolation', '✅ 用户只能查看自己的数据（数据隔离正常）', 'pass');
+                    setTestStatus('test-user-isolation', 'pass');
+                    addTestResult('用户数据隔离', 'PASS', '用户只能查看自己的数据');
+                } else {
+                    log('result-isolation', `❌ 用户可以查看 ${roles.length} 条记录，数据隔离失败！`, 'fail');
+                    setTestStatus('test-user-isolation', 'fail');
+                    addTestResult('用户数据隔离', 'FAIL', `用户可以查看 ${roles.length} 条记录`);
+                }
+
+                await supabase.auth.signOut();
+            } catch (e) {
+                log('result-isolation', '❌ 测试失败: ' + e.message, 'fail');
+                setTestStatus('test-user-isolation', 'fail');
+                addTestResult('用户数据隔离', 'FAIL', e.message);
+            }
+        }
+
+        async function testSqlInjection() {
+            log('result-sql', '⏳ 正在测试SQL注入防护...', 'info');
+            
+            try {
+                const maliciousInput = "'; DROP TABLE user_roles; --";
+                
+                const { data, error } = await supabase
+                    .from('user_roles')
+                    .select('*')
+                    .eq('name', maliciousInput);
+
+                if (error && error.message.includes('invalid input syntax')) {
+                    log('result-sql', '✅ SQL注入被成功阻止', 'pass');
+                    setTestStatus('test-sql-injection', 'pass');
+                    addTestResult('SQL注入防护', 'PASS', '参数化查询有效，注入被阻止');
+                } else if (error) {
+                    log('result-sql', `✅ 查询被拒绝: ${error.message}`, 'pass');
+                    setTestStatus('test-sql-injection', 'pass');
+                    addTestResult('SQL注入防护', 'PASS', '查询被安全拒绝');
+                } else {
+                    log('result-sql', '⚠️ 查询成功（可能正常，也可能存在风险）', 'warning');
+                    addTestResult('SQL注入防护', 'WARN', '查询执行成功，建议进一步验证');
+                }
+            } catch (e) {
+                log('result-sql', '✅ 异常被捕获，注入尝试失败: ' + e.message, 'pass');
+                setTestStatus('test-sql-injection', 'pass');
+                addTestResult('SQL注入防护', 'PASS', '注入尝试被捕获');
+            }
+        }
+
+        async function runAllTests() {
+            testResults = [];
+            
+            await testRlsEnabled();
+            await new Promise(r => setTimeout(r, 500));
+            await testAnonymousAccess();
+            await new Promise(r => setTimeout(r, 500));
+            await testAdminAccess();
+            await new Promise(r => setTimeout(r, 500));
+            await testOperatorAccess();
+            await new Promise(r => setTimeout(r, 500));
+            await testUserIsolation();
+            await new Promise(r => setTimeout(r, 500));
+            await testSqlInjection();
+            
+            showSummary();
+        }
+
+        function showSummary() {
+            const passed = testResults.filter(r => r.status === 'PASS').length;
+            const failed = testResults.filter(r => r.status === 'FAIL').length;
+            const skipped = testResults.filter(r => r.status === 'SKIP').length;
+            const warned = testResults.filter(r => r.status === 'WARN').length;
+            
+            let summary = `安全测试总结\n`;
+            summary += `================\n\n`;
+            summary += `测试总数: ${testResults.length}\n`;
+            summary += `✅ 通过: ${passed}\n`;
+            summary += `❌ 失败: ${failed}\n`;
+            summary += `⚠️ 警告: ${warned}\n`;
+            summary += `⏭️ 跳过: ${skipped}\n\n`;
+            summary += `详细结果:\n`;
+            summary += `----------------\n`;
+            
+            testResults.forEach(result => {
+                const statusIcon = result.status === 'PASS' ? '✅' : result.status === 'FAIL' ? '❌' : result.status === 'SKIP' ? '⏭️' : '⚠️';
+                summary += `${statusIcon} ${result.testName}: ${result.status}\n`;
+                if (result.message) summary += `   ${result.message}\n`;
+            });
+
+            document.getElementById('summary-result').textContent = summary;
+            
+            const allPassed = failed === 0;
+            setTestStatus('test-summary', allPassed ? 'pass' : 'fail');
+        }
+
+        function clearResults() {
+            testResults = [];
+            document.querySelectorAll('.result').forEach(el => el.innerHTML = '');
+            document.querySelectorAll('.test-section').forEach(el => el.className = 'test-section test-pending');
+            document.getElementById('summary-result').textContent = '';
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

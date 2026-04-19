@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完整权限管理测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .test-title { font-size: 18px; margin-bottom: 15px; color: #333; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .error { background: #ffebee; color: #c62828; }
+        .info { background: #e3f2fd; color: #1565c0; }
+        .btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #5a6fd6; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        .test-input { padding: 8px; margin: 5px; width: 300px; }
+        .test-row { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔐 权限管理完整测试</h1>
+    <p>此页面用于全面验证权限管理功能的修复</p>
+
+    <div class="test-section">
+        <div class="test-title">1. 环境检查</div>
+        <button class="btn" onclick="checkEnvironment()">检查环境</button>
+        <div id="env-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">2. Supabase 连接测试</div>
+        <button class="btn" onclick="testSupabaseConnection()">测试连接</button>
+        <div id="conn-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">3. user_roles 表结构检查</div>
+        <button class="btn" onclick="checkUserRolesTable()">检查表结构</button>
+        <div id="table-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">4. RPC 函数测试</div>
+        <button class="btn" onclick="testConfirmEmailFunction()">测试 confirm_email</button>
+        <div id="rpc-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">5. 创建用户测试</div>
+        <div class="test-row">
+            <input type="email" id="testEmail" class="test-input" placeholder="测试邮箱">
+            <input type="password" id="testPassword" class="test-input" placeholder="测试密码">
+            <input type="text" id="testName" class="test-input" placeholder="用户姓名">
+        </div>
+        <button class="btn" onclick="testCreateUser()">创建用户</button>
+        <div id="create-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">6. 用户登录测试</div>
+        <button class="btn" onclick="testLogin()">登录测试用户</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">7. 角色查询测试</div>
+        <button class="btn" onclick="testRoleQuery()">查询角色</button>
+        <div id="role-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">测试日志</div>
+        <pre id="logs" style="height: 300px; overflow-y: auto;"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        
+        let supabaseClient;
+        let testUserId = null;
+
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            logs.textContent = `[${time}] ${message}\n` + logs.textContent;
+        }
+
+        function setResult(id, message, type = 'info') {
+            const el = document.getElementById(id);
+            el.className = `result ${type}`;
+            el.textContent = message;
+        }
+
+        async function initSupabase() {
+            try {
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    log('✅ Supabase 客户端初始化成功');
+                    return true;
+                }
+                log('❌ Supabase SDK 未加载');
+                return false;
+            } catch (e) {
+                log('❌ Supabase 初始化失败: ' + e.message);
+                return false;
+            }
+        }
+
+        async function checkEnvironment() {
+            log('=== 环境检查 ===');
+            log('Supabase URL: ' + SUPABASE_URL);
+            log('SDK 版本检测...');
+            
+            if (typeof window.supabase !== 'undefined') {
+                log('✅ Supabase SDK 已加载');
+                setResult('env-result', '✅ 环境检查通过', 'success');
+            } else {
+                log('❌ Supabase SDK 未加载');
+                setResult('env-result', '❌ Supabase SDK 未加载', 'error');
+            }
+        }
+
+        async function testSupabaseConnection() {
+            try {
+                if (!supabaseClient) await initSupabase();
+                
+                log('=== 连接测试 ===');
+                const { data, error } = await supabaseClient.from('positions').select('*').limit(1);
+                
+                if (error) {
+                    log('❌ 连接失败: ' + error.message);
+                    setResult('conn-result', '❌ 连接失败: ' + error.message, 'error');
+                } else {
+                    log('✅ 连接成功');
+                    log('返回数据: ' + JSON.stringify(data));
+                    setResult('conn-result', '✅ Supabase 连接成功！', 'success');
+                }
+            } catch (e) {
+                log('❌ 连接异常: ' + e.message);
+                setResult('conn-result', '❌ 连接异常: ' + e.message, 'error');
+            }
+        }
+
+        async function checkUserRolesTable() {
+            try {
+                if (!supabaseClient) await initSupabase();
+                
+                log('=== 表结构检查 ===');
+                
+                const tableInfo = await supabaseClient.rpc('get_table_columns', { table_name: 'user_roles' }).catch(() => null);
+                
+                if (tableInfo) {
+                    log('✅ user_roles 表存在');
+                    log('表字段: ' + JSON.stringify(tableInfo));
+                    setResult('table-result', '✅ user_roles 表存在，字段: ' + JSON.stringify(tableInfo.map(c => c.column_name)), 'success');
+                } else {
+                    log('❌ 无法获取表结构信息');
+                    
+                    const { data, error } = await supabaseClient.from('user_roles').select('*').limit(1);
+                    if (error) {
+                        log('❌ 查询失败: ' + error.message);
+                        setResult('table-result', '❌ 查询失败: ' + error.message, 'error');
+                    } else {
+                        log('✅ 查询成功，记录数: ' + (data?.length || 0));
+                        setResult('table-result', '✅ user_roles 表可访问，现有记录: ' + (data?.length || 0), 'success');
+                    }
+                }
+            } catch (e) {
+                log('❌ 表检查异常: ' + e.message);
+                setResult('table-result', '❌ 表检查异常: ' + e.message, 'error');
+            }
+        }
+
+        async function testConfirmEmailFunction() {
+            try {
+                if (!supabaseClient) await initSupabase();
+                
+                log('=== RPC函数测试 ===');
+                
+                const { error } = await supabaseClient.rpc('confirm_email', { user_email: 'test@example.com' });
+                
+                if (error) {
+                    if (error.message.includes('Could not find the function')) {
+                        log('❌ confirm_email 函数不存在');
+                        setResult('rpc-result', '❌ confirm_email 函数不存在，请执行修复脚本', 'error');
+                    } else {
+                        log('⚠️ RPC调用有错误但函数存在: ' + error.message);
+                        setResult('rpc-result', '⚠️ RPC调用有错误但函数存在: ' + error.message, 'info');
+                    }
+                } else {
+                    log('✅ confirm_email RPC 函数正常工作');
+                    setResult('rpc-result', '✅ confirm_email RPC 函数正常工作', 'success');
+                }
+            } catch (e) {
+                log('❌ RPC测试异常: ' + e.message);
+                setResult('rpc-result', '❌ RPC测试异常: ' + e.message, 'error');
+            }
+        }
+
+        async function testCreateUser() {
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            const name = document.getElementById('testName').value || '测试用户';
+            
+            if (!email || !password) {
+                setResult('create-result', '请输入邮箱和密码', 'error');
+                return;
+            }
+
+            try {
+                if (!supabaseClient) await initSupabase();
+                
+                log('=== 创建用户测试 ===');
+                log('邮箱: ' + email);
+                
+                const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    log('❌ 创建用户失败: ' + authError.message);
+                    setResult('create-result', '❌ 创建用户失败: ' + authError.message, 'error');
+                    return;
+                }
+
+                if (!authData.user) {
+                    log('❌ 创建用户失败：未返回用户信息');
+                    setResult('create-result', '❌ 创建用户失败：未返回用户信息', 'error');
+                    return;
+                }
+
+                testUserId = authData.user.id;
+                log('✅ Supabase 用户创建成功，用户ID: ' + authData.user.id);
+
+                await supabaseClient.rpc('confirm_email', { user_email: email }).catch(() => {});
+
+                const { error: roleError } = await supabaseClient.from('user_roles').upsert({
+                    user_id: authData.user.id,
+                    role: 'operator',
+                    name: name
+                }, { onConflict: 'user_id' });
+
+                if (roleError) {
+                    log('❌ 角色插入失败: ' + roleError.message);
+                    setResult('create-result', '⚠️ 用户创建成功，但角色插入失败: ' + roleError.message, 'info');
+                } else {
+                    log('✅ 角色记录插入成功');
+                    setResult('create-result', '✅ 用户创建成功！用户ID: ' + authData.user.id, 'success');
+                }
+
+            } catch (e) {
+                log('❌ 创建用户异常: ' + e.message);
+                setResult('create-result', '❌ 创建用户异常: ' + e.message, 'error');
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            
+            if (!email || !password) {
+                setResult('login-result', '请先创建测试用户', 'error');
+                return;
+            }
+
+            try {
+                if (!supabaseClient) await initSupabase();
+                
+                log('=== 登录测试 ===');
+                
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    log('❌ 登录失败: ' + error.message);
+                    setResult('login-result', '❌ 登录失败: ' + error.message, 'error');
+                    return;
+                }
+
+                log('✅ 登录成功');
+                log('用户信息: ' + JSON.stringify(data.user));
+                
+                const roleResult = await supabaseClient
+                    .from('user_roles')
+                    .select('role, name')
+                    .eq('user_id', data.user.id);
+
+                if (roleResult.data && roleResult.data.length > 0) {
+                    log('✅ 角色查询成功: ' + JSON.stringify(roleResult.data[0]));
+                    setResult('login-result', '✅ 登录成功！角色: ' + roleResult.data[0].role, 'success');
+                } else {
+                    log('⚠️ 未找到角色记录');
+                    setResult('login-result', '⚠️ 登录成功，但未找到角色记录', 'info');
+                }
+
+            } catch (e) {
+                log('❌ 登录异常: ' + e.message);
+                setResult('login-result', '❌ 登录异常: ' + e.message, 'error');
+            }
+        }
+
+        async function testRoleQuery() {
+            try {
+                if (!supabaseClient) await initSupabase();
+                
+                log('=== 角色查询测试 ===');
+                
+                const { data, error } = await supabaseClient.from('user_roles').select('*');
+                
+                if (error) {
+                    log('❌ 查询失败: ' + error.message);
+                    setResult('role-result', '❌ 查询失败: ' + error.message, 'error');
+                } else {
+                    log('✅ 查询成功，记录数: ' + data.length);
+                    log('记录: ' + JSON.stringify(data));
+                    setResult('role-result', '✅ 查询成功！共 ' + data.length + ' 条记录', 'success');
+                }
+            } catch (e) {
+                log('❌ 角色查询异常: ' + e.message);
+                setResult('role-result', '❌ 角色查询异常: ' + e.message, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initSupabase();
+            log('测试页面初始化完成');
+        });
+    </script>
+</body>
+</html>

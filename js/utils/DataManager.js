@@ -15,15 +15,23 @@ class RecruitmentDataManager {
 
     /**
      * 从applications表同步数据到recruitment_process表
-     * 优化：减少重复查询，使用并行加载
+     * 优化：支持增量同步，减少不必要的数据传输
      */
-    async syncFromApplications() {
+    async syncFromApplications(lastSyncTime = null) {
         try {
-            // 优化：并行获取applications、bookings和recruitment_process数据
+            // 优化：构建查询条件，支持增量同步
+            let appQuery = this.client.from('applications').select('*');
+            
+            // 如果有上次同步时间，只获取更新的数据
+            if (lastSyncTime) {
+                appQuery = appQuery.gte('updated_at', new Date(lastSyncTime).toISOString());
+            }
+            
+            // 优化：并行获取数据，applications按更新时间排序
             const [applicationsResult, bookingsResult, existingRpResult] = await Promise.all([
-                this.client.from('applications').select('*').order('created_at', { ascending: false }),
+                appQuery.order('updated_at', { ascending: false }),
                 this.client.from('bookings').select('id, application_id, status'),
-                this.client.from('recruitment_process').select('*')
+                this.client.from('recruitment_process').select('id, application_id, updated_at')
             ]);
 
             const { data: applications, error: appError } = applicationsResult;
@@ -81,6 +89,9 @@ class RecruitmentDataManager {
             // 4. 准备要插入的新记录和要更新的记录
             const newRecords = [];
             const updateRecords = [];
+            
+            // 优化：批量处理时减少日志输出
+            const isDebugMode = false; // 生产环境关闭调试日志
 
             for (const app of validApplications) {
                 // 从dynamic_fields中提取数据
@@ -155,7 +166,6 @@ class RecruitmentDataManager {
                                           /^[0-9]+[-+]?[0-9]*个月/.test(workExperience) ||
                                           /年限/.test(workExperience);
                     if (looksLikeYears) {
-                        console.log(`  过滤：workExperience "${workExperience}" 看起来像年限，已清空`);
                         workExperience = null;
                     }
                 }
@@ -168,46 +178,14 @@ class RecruitmentDataManager {
                     '招聘渠道', '渠道', '来源渠道', '应聘渠道'
                 ]);
                 
-                // 调试：打印数据获取情况
-                console.log('同步记录 - 姓名:', app.name, 'ID:', app.id);
-                console.log('  app.id_card:', app.id_card);
-                console.log('  app.form_data?.id_card:', app.form_data?.id_card);
-                console.log('  app.dynamic_fields?.id_card:', app.dynamic_fields?.id_card);
-                console.log('  dynamicFields 所有键:', Object.keys(dynamicFields));
-                console.log('  dynamicFields 完整内容:', JSON.stringify(dynamicFields, null, 2));
-                // 查找所有可能包含身份证号的字段
-                const possibleIdCardFields = ['id_card', 'ID_card', 'ID card', 'idCard', 'IDCard', '身份证', '身份证号', '身份证号码'];
-                possibleIdCardFields.forEach(field => {
-                    if (dynamicFields[field]) {
-                        console.log(`  找到身份证号字段 [${field}]:`, dynamicFields[field]);
-                    }
-                    if (app[field]) {
-                        console.log(`  找到身份证号字段 app[${field}]:`, app[field]);
-                    }
-                });
-                // 查找所有可能包含工作年限的字段
-                const possibleExpFields = ['experience', 'Experience', 'related experience', 'Related Experience', '工作年限', '相关工作经验'];
-                possibleExpFields.forEach(field => {
-                    if (dynamicFields[field]) {
-                        console.log(`  找到工作年限字段 [${field}]:`, dynamicFields[field]);
-                    }
-                });
-                console.log('  结果 -> jobType:', jobType, 'idCard:', idCard || '无', 'experience:', app.experience, 'skills:', skills ? '有' : '无', 'workExperience:', workExperience ? '有' : '无', 'sourceChannel:', sourceChannel);
+                // 调试日志仅在调试模式输出
+                if (isDebugMode) {
+                    console.log('同步记录 - 姓名:', app.name, 'ID:', app.id);
+                }
 
                 // 关键修复：合并recruitment_process表中的数据（初试/复试信息）
                 const rpData = rpDataMap.get(app.id);
                 if (rpData) {
-                    console.log(`  合并recruitment_process数据:`, {
-                        first_interview_time: rpData.first_interview?.time || rpData.first_interview_time,
-                        first_interview_result: rpData.first_interview?.result || rpData.first_interview_result,
-                        second_interview_time: rpData.second_interview?.time || rpData.second_interview_time,
-                        second_interview_result: rpData.second_interview?.result || rpData.second_interview_result,
-                        current_stage: rpData.current_stage,
-                        current_status: rpData.current_status,
-                        accept_offer: rpData.accept_offer,
-                        hire_info: rpData.hire_info
-                    });
-
                     // 合并初试信息
                     if (rpData.first_interview?.time || rpData.first_interview_time) {
                         app.first_interview_time = rpData.first_interview?.time || rpData.first_interview_time;
@@ -246,23 +224,19 @@ class RecruitmentDataManager {
                     }
                     if (acceptOfferValue !== undefined && acceptOfferValue !== null && acceptOfferValue !== '') {
                         app.accept_offer = acceptOfferValue;
-                        console.log(`    合并 accept_offer: ${acceptOfferValue} (类型: ${typeof acceptOfferValue})`);
                     }
                     // 关键修复：合并拒绝原因
                     if (rpData.offer_reject_reason) app.offer_reject_reason = rpData.offer_reject_reason;
                     // 关键修复：is_reported 可能是布尔值、字符串或数字，需要正确处理
                     if (rpData.is_reported !== undefined && rpData.is_reported !== null) {
                         app.is_reported = rpData.is_reported;
-                        console.log(`    合并 is_reported: ${rpData.is_reported} (类型: ${typeof rpData.is_reported})`);
                     }
                     if (rpData.report_date) {
                         app.report_date = rpData.report_date;
-                        console.log(`    合并 report_date: ${rpData.report_date}`);
                     }
                     // 关键修复：合并未报到原因
                     if (rpData.no_report_reason !== undefined && rpData.no_report_reason !== null) {
                         app.no_report_reason = rpData.no_report_reason;
-                        console.log(`    合并 no_report_reason: ${rpData.no_report_reason}`);
                     }
                 }
 
@@ -302,21 +276,17 @@ class RecruitmentDataManager {
                         needUpdate = true;
                     }
                     
-                    // 关键修复：根据数据状态重新计算 current_stage 和 current_status
-                    const stageInfo = this.determineStageFromData(app);
-                    
-                    // 如果环节或状态发生变化，需要更新
-                    if (stageInfo.stage !== existingRecord.current_stage) {
-                        updateData.current_stage = stageInfo.stage;
-                        needUpdate = true;
-                        console.log(`更新环节: ${app.name} (ID: ${app.id}) 从 "${existingRecord.current_stage}" 到 "${stageInfo.stage}"`);
-                    }
-                    
-                    if (stageInfo.status !== existingRecord.current_status) {
-                        updateData.current_status = stageInfo.status;
-                        needUpdate = true;
-                        console.log(`更新状态: ${app.name} (ID: ${app.id}) 从 "${existingRecord.current_status}" 到 "${stageInfo.status}"`);
-                    }
+                    // fix: 不再同步更新 current_stage 和 current_status - 这些字段由用户在招聘流程管理页面手动维护
+                    // 同步只更新基础信息（姓名、电话、岗位等），不覆盖流程状态
+                    // const stageInfo = this.determineStageFromData(app);
+                    // if (stageInfo.stage !== existingRecord.current_stage) {
+                    //     updateData.current_stage = stageInfo.stage;
+                    //     needUpdate = true;
+                    // }
+                    // if (stageInfo.status !== existingRecord.current_status) {
+                    //     updateData.current_status = stageInfo.status;
+                    //     needUpdate = true;
+                    // }
                     
                     // 同步更新面试日期和时段
                     if (isValidValue(app.interview_date)) {
@@ -740,6 +710,103 @@ class RecruitmentDataManager {
                 data: [],
                 count: 0
             };
+        }
+    }
+
+    /**
+     * 修复历史数据的 current_stage 和 current_status
+     * 根据 first_interview_result、second_interview_result 等字段重新计算
+     */
+    async fixHistoricalData() {
+        try {
+            const { data, error } = await this.client
+                .from('recruitment_process')
+                .select('*');
+            
+            if (error) throw error;
+            
+            let fixedCount = 0;
+            
+            for (const record of data) {
+                let needUpdate = false;
+                const updateData = { id: record.id };
+                
+                // 根据 first_interview_result 判断
+                if (record.first_interview_result === 'reject') {
+                    if (record.current_stage !== 'first_interview' || record.current_status !== 'reject') {
+                        updateData.current_stage = 'first_interview';
+                        updateData.current_status = 'reject';
+                        needUpdate = true;
+                    }
+                } else if (record.first_interview_result === 'pass') {
+                    if (record.current_stage !== 'second_interview') {
+                        updateData.current_stage = 'second_interview';
+                        updateData.current_status = 'pending';
+                        needUpdate = true;
+                    }
+                }
+                
+                // 根据 second_interview_result 判断
+                if (record.second_interview_result === 'reject') {
+                    if (record.current_stage !== 'second_interview' || record.current_status !== 'reject') {
+                        updateData.current_stage = 'second_interview';
+                        updateData.current_status = 'reject';
+                        needUpdate = true;
+                    }
+                } else if (record.second_interview_result === 'pass') {
+                    if (record.current_stage !== 'hired') {
+                        updateData.current_stage = 'hired';
+                        updateData.current_status = 'pending';
+                        needUpdate = true;
+                    }
+                }
+                
+                // 根据 accept_offer 判断
+                if (record.accept_offer === 'yes' || record.accept_offer === '是') {
+                    if (record.is_reported) {
+                        if (record.current_stage !== 'onboarded') {
+                            updateData.current_stage = 'onboarded';
+                            updateData.current_status = 'completed';
+                            needUpdate = true;
+                        }
+                    } else if (record.no_report_reason) {
+                        if (record.current_stage !== 'hired' || record.current_status !== 'no_report') {
+                            updateData.current_stage = 'hired';
+                            updateData.current_status = 'no_report';
+                            needUpdate = true;
+                        }
+                    } else {
+                        if (record.current_stage !== 'hired' || record.current_status !== 'accepted') {
+                            updateData.current_stage = 'hired';
+                            updateData.current_status = 'accepted';
+                            needUpdate = true;
+                        }
+                    }
+                } else if (record.accept_offer === 'no' || record.accept_offer === '否') {
+                    if (record.current_stage !== 'hired' || record.current_status !== 'rejected') {
+                        updateData.current_stage = 'hired';
+                        updateData.current_status = 'rejected';
+                        needUpdate = true;
+                    }
+                }
+                
+                if (needUpdate) {
+                    const { error: updateError } = await this.client
+                        .from('recruitment_process')
+                        .update(updateData)
+                        .eq('id', record.id);
+                    
+                    if (!updateError) {
+                        fixedCount++;
+                        console.log(`修复记录: ${record.name}, 环节: ${updateData.current_stage}, 状态: ${updateData.current_status}`);
+                    }
+                }
+            }
+            
+            return { success: true, fixedCount, message: `成功修复 ${fixedCount} 条记录` };
+        } catch (error) {
+            console.error('修复历史数据失败:', error);
+            return { success: false, error: error.message };
         }
     }
 

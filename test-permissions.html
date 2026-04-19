@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>权限管理测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .test-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .test-success { background-color: #e8f5e9; color: #388e3c; }
+        .test-failure { background-color: #ffebee; color: #c62828; }
+        .test-info { background-color: #e3f2fd; color: #1976d2; }
+        button { padding: 10px 20px; margin-right: 10px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1976d2; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🔐 权限管理页面测试</h1>
+    <p>本页面用于测试权限管理页面的各项功能</p>
+
+    <div class="test-section">
+        <div class="test-title">1. 登录状态测试</div>
+        <button onclick="testLoginStatus()">测试登录状态</button>
+        <div id="login-status-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">2. 设置测试用户（管理员）</div>
+        <button onclick="setupTestAdmin()">设置测试管理员</button>
+        <button onclick="clearLoginStatus()">清除登录状态</button>
+        <div id="setup-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">3. 权限配置测试</div>
+        <button onclick="testPermissionConfig()">测试权限配置</button>
+        <div id="permission-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">4. 用户管理测试</div>
+        <button onclick="testUserManagement()">测试用户管理</button>
+        <div id="user-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">5. 当前localStorage内容</div>
+        <button onclick="showLocalStorage()">显示localStorage</button>
+        <pre id="localstorage-content"></pre>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">6. 跳转到权限管理页面</div>
+        <button onclick="goToPermissions()">跳转到权限管理页面</button>
+        <p class="test-info">注意：需要先设置测试管理员才能访问权限管理页面</p>
+    </div>
+
+    <script>
+        // 测试登录状态
+        function testLoginStatus() {
+            const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+            const token = localStorage.getItem('adminToken');
+            const currentUser = localStorage.getItem('currentUser');
+            
+            let result = '';
+            if (isLoggedIn && token && currentUser) {
+                const user = JSON.parse(currentUser);
+                result = `<div class="test-success">✅ 已登录</div>`;
+                result += `<div class="test-info">用户: ${user.name}</div>`;
+                result += `<div class="test-info">角色: ${user.role}</div>`;
+                result += `<div class="test-info">Token: ${token.substring(0, 20)}...</div>`;
+            } else {
+                result = `<div class="test-failure">❌ 未登录</div>`;
+                result += `<div class="test-info">adminLoggedIn: ${localStorage.getItem('adminLoggedIn')}</div>`;
+                result += `<div class="test-info">adminToken: ${token ? '存在' : '不存在'}</div>`;
+                result += `<div class="test-info">currentUser: ${currentUser ? '存在' : '不存在'}</div>`;
+            }
+            document.getElementById('login-status-result').innerHTML = result;
+        }
+
+        // 设置测试管理员
+        function setupTestAdmin() {
+            localStorage.setItem('adminLoggedIn', 'true');
+            localStorage.setItem('adminToken', 'test-token-12345');
+            localStorage.setItem('currentUser', JSON.stringify({
+                username: 'admin@test.com',
+                name: '测试管理员',
+                role: 'admin',
+                email: 'admin@test.com'
+            }));
+            
+            // 设置测试用户列表
+            localStorage.setItem('adminUsers', JSON.stringify([
+                {
+                    username: 'admin@test.com',
+                    password: '123456',
+                    name: '测试管理员',
+                    role: 'admin',
+                    status: 'active'
+                },
+                {
+                    username: 'operator@test.com',
+                    password: '123456',
+                    name: '测试操作员',
+                    role: 'operator',
+                    status: 'active'
+                }
+            ]));
+            
+            document.getElementById('setup-result').innerHTML = '<div class="test-success">✅ 测试管理员已设置完成</div>';
+            testLoginStatus();
+        }
+
+        // 清除登录状态
+        function clearLoginStatus() {
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('adminUsers');
+            localStorage.removeItem('customRoles');
+            document.getElementById('setup-result').innerHTML = '<div class="test-info">ℹ️ 登录状态已清除</div>';
+            testLoginStatus();
+        }
+
+        // 测试权限配置
+        function testPermissionConfig() {
+            const permissionConfig = {
+                admin: {
+                    name: '管理员',
+                    description: '拥有系统所有功能的完整权限',
+                    permissions: {
+                        applications: ['view', 'add', 'edit', 'delete', 'export', 'status'],
+                        bookings: ['view', 'add', 'edit', 'delete', 'confirm', 'export'],
+                        templates: ['view', 'edit', 'fields', 'slots'],
+                        settings: ['view', 'edit', 'permissions', 'backup']
+                    }
+                },
+                operator: {
+                    name: '操作员',
+                    description: '拥有指定模块的操作权限',
+                    permissions: {
+                        applications: ['view', 'add', 'edit', 'export', 'status'],
+                        bookings: ['view', 'add', 'edit', 'confirm', 'export'],
+                        templates: ['view'],
+                        settings: ['view']
+                    }
+                }
+            };
+            
+            let result = '<div class="test-success">✅ 权限配置结构正确</div>';
+            result += '<pre>' + JSON.stringify(permissionConfig, null, 2) + '</pre>';
+            document.getElementById('permission-result').innerHTML = result;
+        }
+
+        // 测试用户管理
+        function testUserManagement() {
+            const users = JSON.parse(localStorage.getItem('adminUsers') || '[]');
+            
+            if (users.length === 0) {
+                document.getElementById('user-result').innerHTML = '<div class="test-info">ℹ️ 当前没有用户数据，请先设置测试管理员</div>';
+                return;
+            }
+            
+            let result = `<div class="test-success">✅ 用户列表共 ${users.length} 条记录</div>`;
+            users.forEach((user, index) => {
+                result += `<div class="test-info">用户 ${index + 1}: ${user.name} (${user.role}) - ${user.status}</div>`;
+            });
+            document.getElementById('user-result').innerHTML = result;
+        }
+
+        // 显示localStorage内容
+        function showLocalStorage() {
+            const content = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                let value = localStorage.getItem(key);
+                // 格式化JSON内容
+                try {
+                    value = JSON.stringify(JSON.parse(value), null, 2);
+                } catch (e) {
+                    // 不是JSON，保持原样
+                }
+                content[key] = value;
+            }
+            document.getElementById('localstorage-content').textContent = JSON.stringify(content, null, 2);
+        }
+
+        // 跳转到权限管理页面
+        function goToPermissions() {
+            window.location.href = 'permissions.html';
+        }
+
+        // 页面加载时自动测试
+        window.addEventListener('DOMContentLoaded', function() {
+            testLoginStatus();
+            testPermissionConfig();
+            testUserManagement();
+        });
+    </script>
+</body>
+</html>

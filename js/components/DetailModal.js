@@ -88,6 +88,9 @@ class DetailModal {
     renderContent(record) {
         let html = '';
 
+        // fix: 添加招聘流程时间线
+        html += this.renderTimeline(record);
+
         // 处理JSONB格式的初试信息，展开为独立字段
         const processedRecord = { ...record };
         if (record.first_interview && typeof record.first_interview === 'object') {
@@ -108,16 +111,6 @@ class DetailModal {
                 return value !== null && value !== undefined && value !== '';
             });
 
-            // 对于录用状态分组，在录用阶段始终显示
-            if (groupKey === 'hireStatus' && record.current_stage === 'hired') {
-                // 始终显示录用状态分组，即使某些字段为空
-                const allFields = groupFields.map(field => {
-                    const value = processedRecord[field.field];
-                    return { ...field, displayValue: value || '-' };
-                });
-                validFields.push(...allFields);
-            }
-            
             // 对于复试信息分组，始终显示"是否接受offer"字段（如果在录用阶段）
             if (groupKey === 'secondInterview' && record.current_stage === 'hired') {
                 const hasAcceptOffer = validFields.some(f => f.field === 'accept_offer');
@@ -138,8 +131,22 @@ class DetailModal {
 
             if (validFields.length === 0) continue;
 
+            // fix: 根据分组类型添加对应的色彩类名
+            const groupClassMap = {
+                'basic': 'group-basic',
+                'application': 'group-application',
+                'emergency': 'group-basic',
+                'interview': 'group-interview',
+                'firstInterview': 'group-first',
+                'secondInterview': 'group-second',
+                'onboarding': 'group-onboard',
+                'system': 'group-system'
+            };
+            const groupClass = groupClassMap[groupKey] || '';
+
+            // fix: 使用卡片式布局，添加分组色彩类名
             html += `
-                <div class="detail-group">
+                <div class="detail-group-card ${groupClass}">
                     <h4 class="group-title">${groupConfig.label}</h4>
                     <div class="detail-grid">
                         ${validFields.map(field => this.renderField(processedRecord, field)).join('')}
@@ -159,6 +166,56 @@ class DetailModal {
         }
 
         return html;
+    }
+
+    /**
+     * fix: 渲染招聘流程时间线
+     */
+    renderTimeline(record) {
+        const stages = [
+            { key: 'application', label: '投递简历', icon: '📝' },
+            { key: 'first_interview', label: '初试', icon: '👤' },
+            { key: 'second_interview', label: '复试', icon: '🤝' },
+            { key: 'hired', label: '录用', icon: '✅' },
+            { key: 'onboard', label: '报到', icon: '🎯' }
+        ];
+
+        const currentStage = record.current_stage || 'application';
+        
+        // 确定当前阶段索引
+        let currentIndex = stages.findIndex(s => s.key === currentStage);
+        if (currentIndex === -1) currentIndex = 0;
+
+        // 检查是否有拒绝状态
+        const isRejected = record.current_status === 'reject' || 
+                          record.first_interview_result === 'reject' || 
+                          record.second_interview_result === 'reject' ||
+                          record.accept_offer === 'no';
+
+        let timelineHtml = '<div class="timeline-container">';
+        timelineHtml += '<div class="timeline-title">招聘流程进度</div>';
+        timelineHtml += '<div class="timeline">';
+
+        stages.forEach((stage, index) => {
+            let status = 'pending';
+            if (isRejected && index === currentIndex) {
+                status = 'reject';
+            } else if (index < currentIndex) {
+                status = 'completed';
+            } else if (index === currentIndex) {
+                status = 'current';
+            }
+
+            timelineHtml += `
+                <div class="timeline-item ${status}">
+                    <div class="timeline-icon">${stage.icon}</div>
+                    <div class="timeline-label">${stage.label}</div>
+                </div>
+            `;
+        });
+
+        timelineHtml += '</div></div>';
+        return timelineHtml;
     }
 
     /**

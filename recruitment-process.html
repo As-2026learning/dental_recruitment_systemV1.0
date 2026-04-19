@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>招聘流程管理 - 义齿工厂招聘系统</title>
-    <!-- GitHub Pages 路径修复：设置基础路径 -->
-    <base href="https://as-2026learning.github.io/dental_recruitment_systemV1.0/">
+    <!-- fix: 移除<base>标签 - 该标签导致所有相对链接跳转到GitHub Pages而非本地文件 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="js/config.js?v=13"></script>
@@ -38,11 +37,11 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                // 跳转到登录页
-                window.location.replace('login.html');
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.replace('login-new.html');
                 return;
             }
-            
+
             // 验证用户信息格式
             try {
                 const currentUser = JSON.parse(currentUserStr);
@@ -54,7 +53,8 @@
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminLoggedIn');
                 localStorage.removeItem('currentUser');
-                window.location.replace('login.html');
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.replace('login-new.html');
                 return;
             }
         })();
@@ -136,6 +136,7 @@
                 <button id="btnBatchDelete" class="btn-batch-delete" style="display:none;">🗑️ 批量删除</button>
                 <button id="btnForceSync" class="btn-sync">🔄 强制同步数据</button>
                 <button id="btnDataQuality" class="btn-quality">📋 数据质量检查</button>
+                <button id="btnFixData" class="btn-fix">🔧 修复数据状态</button>
             </div>
             <div class="toolbar-right">
                 <button id="btnClearFilter" class="btn-clear-filter" style="display:none;">❌ 清除筛选</button>
@@ -205,8 +206,8 @@
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('userRole');
-                // 跳转到登录页
-                window.location.href = 'login.html';
+                // fix: 跳转到新登录页 login-new.html - 原login.html已弃用
+                window.location.href = 'login-new.html';
             }
         }
     </script>

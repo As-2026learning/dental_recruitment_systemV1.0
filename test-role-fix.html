@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色信息获取修复测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; background: #f5f7fa; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: white; }
+        .test-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #333; border-bottom: 2px solid #1890ff; padding-bottom: 8px; }
+        .test-result { padding: 12px; margin: 10px 0; border-radius: 6px; font-size: 14px; }
+        .test-success { background-color: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .test-failure { background-color: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        .test-info { background-color: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+        .test-warning { background-color: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+        button { padding: 10px 20px; margin-right: 10px; background: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #096dd9; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input { padding: 10px; margin: 5px; width: 280px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
+        select { padding: 10px; margin: 5px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
+        .form-group { margin: 12px 0; }
+        .form-group label { display: inline-block; width: 100px; font-weight: 500; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 12px; color: #333; }
+        .log-area { height: 300px; overflow-y: auto; }
+        .test-scenario { margin: 15px 0; padding: 15px; background: #fafafa; border-radius: 6px; }
+        .scenario-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+        .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #1890ff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <h1>🔐 角色信息获取修复测试</h1>
+    <p>本页面用于验证登录后台角色信息获取功能的修复效果</p>
+
+    <div class="test-section">
+        <div class="test-title">1. 环境检查</div>
+        <button onclick="checkEnvironment()">检查环境</button>
+        <div id="env-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">2. RPC 函数测试</div>
+        <div class="form-group">
+            <label>用户ID:</label>
+            <input type="text" id="testUserId" placeholder="输入用户UUID">
+            <button onclick="testRPCFunction()">测试 RPC 函数</button>
+        </div>
+        <div id="rpc-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">3. 用户创建与角色配置</div>
+        <div class="form-group">
+            <label>邮箱:</label>
+            <input type="email" id="createEmail" placeholder="test@example.com" value="test_role_user@example.com">
+        </div>
+        <div class="form-group">
+            <label>姓名:</label>
+            <input type="text" id="createName" placeholder="测试用户" value="角色测试用户">
+        </div>
+        <div class="form-group">
+            <label>密码:</label>
+            <input type="password" id="createPassword" placeholder="至少6位" value="12345678">
+        </div>
+        <div class="form-group">
+            <label>角色:</label>
+            <select id="createRole">
+                <option value="admin">管理员 (admin)</option>
+                <option value="operator">操作员 (operator)</option>
+                <option value="viewer">查看者 (viewer)</option>
+            </select>
+        </div>
+        <button onclick="createUserWithRole()">创建用户并配置角色</button>
+        <div id="create-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">4. 登录测试场景</div>
+        
+        <div class="test-scenario">
+            <div class="scenario-title">场景A: 正常用户登录（有角色配置）</div>
+            <div class="form-group">
+                <label>邮箱:</label>
+                <input type="email" id="loginEmailA" placeholder="已配置角色的用户邮箱">
+            </div>
+            <div class="form-group">
+                <label>密码:</label>
+                <input type="password" id="loginPasswordA" placeholder="密码">
+            </div>
+            <button onclick="testLoginWithRole()">开始测试</button>
+            <div id="scenario-a-result" class="test-result"></div>
+        </div>
+
+        <div class="test-scenario">
+            <div class="scenario-title">场景B: 无角色用户登录（未配置角色）</div>
+            <div class="form-group">
+                <label>邮箱:</label>
+                <input type="email" id="loginEmailB" placeholder="未配置角色的用户邮箱">
+            </div>
+            <div class="form-group">
+                <label>密码:</label>
+                <input type="password" id="loginPasswordB" placeholder="密码">
+            </div>
+            <button onclick="testLoginWithoutRole()">开始测试</button>
+            <div id="scenario-b-result" class="test-result"></div>
+        </div>
+
+        <div class="test-scenario">
+            <div class="scenario-title">场景C: 角色配置变更测试</div>
+            <div class="form-group">
+                <label>用户ID:</label>
+                <input type="text" id="updateUserId" placeholder="要更新的用户ID">
+            </div>
+            <div class="form-group">
+                <label>新角色:</label>
+                <select id="updateRole">
+                    <option value="admin">管理员 (admin)</option>
+                    <option value="operator">操作员 (operator)</option>
+                    <option value="viewer">查看者 (viewer)</option>
+                </select>
+            </div>
+            <button onclick="testRoleUpdate()">更新角色配置</button>
+            <div id="scenario-c-result" class="test-result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">5. 测试日志</div>
+        <button onclick="clearLogs()">清空日志</button>
+        <pre id="logs" class="log-area"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        let supabaseClient;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            const typeColor = {
+                info: 'color: #666',
+                success: 'color: #52c41a',
+                error: 'color: #ff4d4f',
+                warning: 'color: #faad14'
+            };
+            logs.innerHTML = `[${time}] <span style="${typeColor[type]}">[${type.toUpperCase()}]</span> ${message}\n` + logs.innerHTML;
+        }
+
+        function setResult(id, message, type = 'info') {
+            const el = document.getElementById(id);
+            el.className = `test-result test-${type}`;
+            el.innerHTML = message;
+        }
+
+        async function initSupabase() {
+            try {
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    log('✅ Supabase 客户端初始化成功', 'success');
+                    return true;
+                }
+                log('❌ Supabase SDK 未加载', 'error');
+                return false;
+            } catch (e) {
+                log(`❌ Supabase 初始化失败: ${e.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function checkEnvironment() {
+            if (!supabaseClient) await initSupabase();
+            
+            try {
+                log('🔍 开始环境检查...');
+                
+                const checks = [];
+                
+                // 检查连接
+                const { data: connData, error: connError } = await supabaseClient.from('positions').select('*').limit(1);
+                if (!connError) {
+                    checks.push('✅ Supabase 连接正常');
+                } else {
+                    checks.push(`❌ Supabase 连接失败: ${connError.message}`);
+                }
+                
+                // 检查 user_roles 表
+                const { data: roleData, error: roleError } = await supabaseClient.from('user_roles').select('*').limit(1);
+                if (!roleError) {
+                    checks.push(`✅ user_roles 表可访问，现有记录: ${roleData.length || 0}`);
+                } else {
+                    checks.push(`⚠️ user_roles 表访问异常: ${roleError.message}`);
+                }
+                
+                // 检查 RPC 函数
+                const { error: rpcError } = await supabaseClient.rpc('get_user_role', { user_id_input: 'test' });
+                if (!rpcError || !rpcError.message.includes('Could not find the function')) {
+                    checks.push('✅ get_user_role RPC 函数存在');
+                } else {
+                    checks.push('❌ get_user_role RPC 函数不存在');
+                }
+                
+                setResult('env-result', checks.join('<br>'), checks.some(c => c.includes('❌')) ? 'failure' : 'success');
+                log('环境检查完成', 'info');
+                
+            } catch (e) {
+                setResult('env-result', `❌ 环境检查异常: ${e.message}`, 'failure');
+                log(`环境检查异常: ${e.message}`, 'error');
+            }
+        }
+
+        async function testRPCFunction() {
+            if (!supabaseClient) await initSupabase();
+            
+            const userId = document.getElementById('testUserId').value.trim();
+            if (!userId) {
+                setResult('rpc-result', '❌ 请输入用户ID', 'failure');
+                return;
+            }
+
+            try {
+                log(`🔍 测试 RPC 函数，用户ID: ${userId}`);
+                
+                const { data, error } = await supabaseClient.rpc('get_user_role', { user_id_input: userId });
+                
+                if (error) {
+                    setResult('rpc-result', `❌ RPC调用失败: ${error.message}`, 'failure');
+                    log(`RPC调用失败: ${error.message}`, 'error');
+                    return;
+                }
+                
+                if (data && data.role) {
+                    setResult('rpc-result', `✅ RPC调用成功！角色: ${data.role}, 姓名: ${data.name}`, 'success');
+                    log(`RPC调用成功: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    setResult('rpc-result', '⚠️ RPC返回空数据（用户可能未配置角色）', 'warning');
+                    log('RPC返回空数据', 'warning');
+                }
+                
+            } catch (e) {
+                setResult('rpc-result', `❌ 测试失败: ${e.message}`, 'failure');
+                log(`RPC测试异常: ${e.message}`, 'error');
+            }
+        }
+
+        async function createUserWithRole() {
+            if (!supabaseClient) await initSupabase();
+            
+            const email = document.getElementById('createEmail').value.trim();
+            const name = document.getElementById('createName').value.trim();
+            const password = document.getElementById('createPassword').value;
+            const role = document.getElementById('createRole').value;
+
+            if (!email || !name || !password) {
+                setResult('create-result', '❌ 请填写完整信息', 'failure');
+                return;
+            }
+
+            try {
+                log(`🔍 创建用户: ${email}, 角色: ${role}`);
+                
+                // 创建用户
+                const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    throw authError;
+                }
+
+                if (!authData.user) {
+                    throw new Error('未返回用户信息');
+                }
+
+                // 确认邮箱
+                await supabaseClient.rpc('confirm_email', { user_email: email }).catch(() => {});
+                log('邮箱已确认', 'info');
+
+                // 插入角色记录
+                const { error: roleError } = await supabaseClient
+                    .from('user_roles')
+                    .insert({ user_id: authData.user.id, role: role, name: name });
+
+                if (roleError) {
+                    await supabaseClient.auth.signOut();
+                    throw roleError;
+                }
+
+                setResult('create-result', `
+                    ✅ 用户创建成功！<br>
+                    用户ID: ${authData.user.id}<br>
+                    邮箱: ${email}<br>
+                    角色: ${role}<br>
+                    姓名: ${name}
+                `, 'success');
+                log(`用户创建成功: ${authData.user.id}`, 'success');
+
+                // 自动填充登录表单
+                document.getElementById('loginEmailA').value = email;
+                document.getElementById('loginPasswordA').value = password;
+                
+            } catch (e) {
+                setResult('create-result', `❌ 创建失败: ${e.message}`, 'failure');
+                log(`用户创建失败: ${e.message}`, 'error');
+            }
+        }
+
+        async function testLoginWithRole() {
+            if (!supabaseClient) await initSupabase();
+            
+            const email = document.getElementById('loginEmailA').value.trim();
+            const password = document.getElementById('loginPasswordA').value;
+
+            if (!email || !password) {
+                setResult('scenario-a-result', '❌ 请填写邮箱和密码', 'failure');
+                return;
+            }
+
+            try {
+                log(`🔍 场景A测试: 正常用户登录 - ${email}`);
+                
+                // 先退出登录
+                await supabaseClient.auth.signOut().catch(() => {});
+                
+                // 登录
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data.user) {
+                    throw new Error('登录失败');
+                }
+
+                // 获取角色信息（模拟 login-new.html 的逻辑）
+                let roleData = null;
+                let lastError = null;
+
+                // 尝试直接查询
+                const directResult = await supabaseClient
+                    .from('user_roles')
+                    .select('role, name')
+                    .eq('user_id', data.user.id);
+
+                if (directResult.error) {
+                    log(`直接查询失败: ${directResult.error.message}`, 'warning');
+                    lastError = directResult.error;
+                    
+                    // 尝试RPC
+                    const rpcResult = await supabaseClient.rpc('get_user_role', { user_id_input: data.user.id });
+                    if (!rpcResult.error && rpcResult.data && rpcResult.data.role) {
+                        roleData = rpcResult.data;
+                        log(`RPC查询成功: ${roleData.role}`, 'success');
+                    } else {
+                        lastError = rpcResult.error || new Error('RPC返回空数据');
+                    }
+                } else if (directResult.data && directResult.data.length > 0) {
+                    roleData = directResult.data[0];
+                    log(`直接查询成功: ${roleData.role}`, 'success');
+                }
+
+                if (roleData) {
+                    setResult('scenario-a-result', `
+                        ✅ 登录成功！<br>
+                        用户: ${data.user.email}<br>
+                        用户ID: ${data.user.id}<br>
+                        角色: ${roleData.role}<br>
+                        姓名: ${roleData.name}
+                    `, 'success');
+                    log('场景A测试通过: 成功获取角色信息', 'success');
+                } else {
+                    setResult('scenario-a-result', `
+                        ❌ 角色信息获取失败<br>
+                        错误: ${lastError?.message || '未知错误'}
+                    `, 'failure');
+                    log(`场景A测试失败: ${lastError?.message}`, 'error');
+                }
+
+                await supabaseClient.auth.signOut();
+                
+            } catch (e) {
+                let errorMsg = e.message;
+                if (errorMsg.includes('Invalid login credentials')) errorMsg = '邮箱或密码错误';
+                if (errorMsg.includes('Email not confirmed')) errorMsg = '邮箱未验证';
+                
+                setResult('scenario-a-result', `❌ 登录失败: ${errorMsg}`, 'failure');
+                log(`场景A登录失败: ${errorMsg}`, 'error');
+            }
+        }
+
+        async function testLoginWithoutRole() {
+            if (!supabaseClient) await initSupabase();
+            
+            const email = document.getElementById('loginEmailB').value.trim();
+            const password = document.getElementById('loginPasswordB').value;
+
+            if (!email || !password) {
+                setResult('scenario-b-result', '❌ 请填写邮箱和密码', 'failure');
+                return;
+            }
+
+            try {
+                log(`🔍 场景B测试: 无角色用户登录 - ${email}`);
+                
+                // 先退出登录
+                await supabaseClient.auth.signOut().catch(() => {});
+                
+                // 登录
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data.user) {
+                    throw new Error('登录失败');
+                }
+
+                // 获取角色信息
+                const result = await supabaseClient
+                    .from('user_roles')
+                    .select('role, name')
+                    .eq('user_id', data.user.id);
+
+                const roleData = result.data && result.data.length > 0 ? result.data[0] : null;
+
+                if (!roleData) {
+                    setResult('scenario-b-result', `
+                        ⚠️ 登录成功，但未找到角色配置<br>
+                        用户: ${data.user.email}<br>
+                        用户ID: ${data.user.id}<br>
+                        系统将使用默认角色: operator
+                    `, 'warning');
+                    log('场景B测试通过: 正确处理无角色用户', 'success');
+                } else {
+                    setResult('scenario-b-result', `
+                        ℹ️ 用户已有角色配置<br>
+                        角色: ${roleData.role}<br>
+                        此用户不符合场景B测试条件
+                    `, 'info');
+                    log('场景B: 用户已有角色', 'info');
+                }
+
+                await supabaseClient.auth.signOut();
+                
+            } catch (e) {
+                let errorMsg = e.message;
+                if (errorMsg.includes('Invalid login credentials')) errorMsg = '邮箱或密码错误';
+                
+                setResult('scenario-b-result', `❌ 登录失败: ${errorMsg}`, 'failure');
+                log(`场景B登录失败: ${errorMsg}`, 'error');
+            }
+        }
+
+        async function testRoleUpdate() {
+            if (!supabaseClient) await initSupabase();
+            
+            const userId = document.getElementById('updateUserId').value.trim();
+            const newRole = document.getElementById('updateRole').value;
+
+            if (!userId) {
+                setResult('scenario-c-result', '❌ 请输入用户ID', 'failure');
+                return;
+            }
+
+            try {
+                log(`🔍 场景C测试: 更新角色 - 用户ID: ${userId}, 新角色: ${newRole}`);
+                
+                // 更新角色
+                const { data, error } = await supabaseClient
+                    .from('user_roles')
+                    .update({ role: newRole, updated_at: new Date().toISOString() })
+                    .eq('user_id', userId)
+                    .select('*');
+
+                if (error) {
+                    throw error;
+                }
+
+                if (data && data.length > 0) {
+                    setResult('scenario-c-result', `
+                        ✅ 角色更新成功！<br>
+                        用户ID: ${data[0].user_id}<br>
+                        新角色: ${data[0].role}<br>
+                        姓名: ${data[0].name}
+                    `, 'success');
+                    log(`角色更新成功: ${userId} -> ${newRole}`, 'success');
+                } else {
+                    setResult('scenario-c-result', `
+                        ⚠️ 未找到用户记录，尝试插入新角色配置<br>
+                        用户ID: ${userId}<br>
+                        新角色: ${newRole}
+                    `, 'warning');
+                    
+                    // 尝试插入新记录
+                    const { error: insertError } = await supabaseClient
+                        .from('user_roles')
+                        .insert({ user_id: userId, role: newRole, name: '未知用户' });
+                    
+                    if (!insertError) {
+                        setResult('scenario-c-result', `
+                            ✅ 角色配置成功！<br>
+                            用户ID: ${userId}<br>
+                            角色: ${newRole}
+                        `, 'success');
+                        log(`角色配置成功: ${userId} -> ${newRole}`, 'success');
+                    } else {
+                        throw insertError;
+                    }
+                }
+                
+            } catch (e) {
+                setResult('scenario-c-result', `❌ 更新失败: ${e.message}`, 'failure');
+                log(`场景C更新失败: ${e.message}`, 'error');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('日志已清空', 'info');
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initSupabase();
+            log('测试页面初始化完成', 'info');
+        });
+    </script>
+</body>
+</html>

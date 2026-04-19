@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>权限管理系统 - 调试版本</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .debug-title { font-weight: bold; margin-bottom: 10px; }
+        .debug-log { font-family: monospace; font-size: 12px; color: #333; margin: 5px 0; }
+        .btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔐 权限管理 - 调试版本</h1>
+    
+    <div class="debug-section">
+        <div class="debug-title">1. 环境检查</div>
+        <button class="btn" onclick="checkEnvironment()">检查环境</button>
+        <div id="env-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">2. 创建用户测试</div>
+        <input type="email" id="testEmail" placeholder="邮箱" style="padding: 8px; width: 300px;">
+        <input type="password" id="testPassword" placeholder="密码" style="padding: 8px; width: 300px;">
+        <input type="text" id="testName" placeholder="姓名" style="padding: 8px; width: 300px;">
+        <button class="btn" onclick="testCreateUser()">创建用户</button>
+        <div id="create-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">调试日志</div>
+        <pre id="debug-logs" style="height: 400px; overflow-y: auto;"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
+        
+        let supabaseClient;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('debug-logs');
+            const time = new Date().toLocaleTimeString();
+            const typeClass = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            logs.innerHTML = `<span class="${typeClass}">[${time}]</span> ${message}\n` + logs.innerHTML;
+        }
+
+        function setResult(id, message, type = 'info') {
+            const el = document.getElementById(id);
+            el.innerHTML = `<span class="${type}">${message}</span>`;
+        }
+
+        async function initSupabase() {
+            try {
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    log('✅ Supabase 客户端初始化成功', 'success');
+                    return true;
+                }
+                log('❌ Supabase SDK 未加载', 'error');
+                return false;
+            } catch (e) {
+                log('❌ Supabase 初始化失败: ' + e.message, 'error');
+                return false;
+            }
+        }
+
+        async function checkEnvironment() {
+            log('=== 环境检查开始 ===');
+            
+            log('检查 Supabase SDK...');
+            if (typeof window.supabase !== 'undefined') {
+                log('✅ Supabase SDK 已加载', 'success');
+            } else {
+                log('❌ Supabase SDK 未加载', 'error');
+            }
+
+            log('检查 supabaseClient...');
+            if (!supabaseClient) {
+                log('初始化 supabaseClient...');
+                await initSupabase();
+            }
+
+            if (supabaseClient) {
+                log('✅ supabaseClient 已初始化', 'success');
+                log('URL: ' + SUPABASE_URL);
+                
+                try {
+                    log('测试数据库连接...');
+                    const { data, error } = await supabaseClient.from('positions').select('*').limit(1);
+                    if (error) {
+                        log('❌ 连接失败: ' + error.message, 'error');
+                        setResult('env-result', '❌ 连接失败: ' + error.message, 'error');
+                    } else {
+                        log('✅ 连接成功', 'success');
+                        setResult('env-result', '✅ 环境检查通过', 'success');
+                    }
+                } catch (e) {
+                    log('❌ 连接异常: ' + e.message, 'error');
+                    setResult('env-result', '❌ 连接异常: ' + e.message, 'error');
+                }
+            }
+            
+            log('=== 环境检查结束 ===');
+        }
+
+        async function testCreateUser() {
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            const name = document.getElementById('testName').value || '测试用户';
+            
+            if (!email || !password) {
+                setResult('create-result', '请输入邮箱和密码', 'error');
+                return;
+            }
+
+            log('=== 创建用户测试开始 ===');
+            log('邮箱: ' + email);
+            log('姓名: ' + name);
+
+            try {
+                if (!supabaseClient) {
+                    log('初始化 supabaseClient...');
+                    await initSupabase();
+                }
+
+                log('步骤1: 创建 Supabase 用户...');
+                const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    log('❌ 创建用户失败: ' + authError.message, 'error');
+                    setResult('create-result', '❌ 创建用户失败: ' + authError.message, 'error');
+                    return;
+                }
+
+                if (!authData.user) {
+                    log('❌ 创建用户失败：未返回用户信息', 'error');
+                    setResult('create-result', '❌ 创建用户失败：未返回用户信息', 'error');
+                    return;
+                }
+
+                log('✅ Supabase 用户创建成功', 'success');
+                log('用户ID: ' + authData.user.id);
+
+                log('步骤2: 确认邮箱...');
+                await confirmEmail(email);
+
+                log('步骤3: 插入角色记录...');
+                const roleData = {
+                    user_id: authData.user.id,
+                    role: 'operator',
+                    name: name
+                };
+                
+                log('准备插入的数据: ' + JSON.stringify(roleData));
+                
+                const { error: roleError } = await supabaseClient
+                    .from('user_roles')
+                    .upsert(roleData, { onConflict: 'user_id' });
+
+                if (roleError) {
+                    log('❌ 角色插入失败: ' + roleError.message, 'error');
+                    log('错误详情: ' + JSON.stringify(roleError), 'error');
+                    setResult('create-result', '❌ 角色插入失败: ' + roleError.message, 'error');
+                } else {
+                    log('✅ 角色记录插入成功', 'success');
+                    setResult('create-result', '✅ 用户创建成功！用户ID: ' + authData.user.id, 'success');
+                }
+
+            } catch (e) {
+                log('❌ 异常: ' + e.message, 'error');
+                log('堆栈: ' + e.stack, 'error');
+                setResult('create-result', '❌ 异常: ' + e.message, 'error');
+            }
+            
+            log('=== 创建用户测试结束 ===');
+        }
+
+        async function confirmEmail(email) {
+            try {
+                log('尝试确认邮箱...');
+                const { error } = await supabaseClient.rpc('confirm_email', { user_email: email });
+                if (error) {
+                    log('⚠️ 邮箱确认失败: ' + error.message);
+                } else {
+                    log('✅ 邮箱确认成功', 'success');
+                }
+            } catch (e) {
+                log('⚠️ 邮箱确认异常: ' + e.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('页面加载完成，初始化...');
+            await initSupabase();
+        });
+    </script>
+</body>
+</html>

@@ -3,9 +3,9 @@
  * 提供全面的招聘流程数据可视化监控与分析功能
  */
 
-// 使用项目统一的Supabase配置
-const DASHBOARD_URL = window.SUPABASE_URL || 'https://your-project.supabase.co';
-const DASHBOARD_KEY = window.SUPABASE_ANON_KEY || 'your-anon-key';
+// fix: 使用CONFIG对象替代硬编码的Supabase配置 - 解决安全红线问题
+const DASHBOARD_URL = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_URL : 'https://your-project.supabase.co';
+const DASHBOARD_KEY = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_KEY : 'your-anon-key';
 
 // 初始化Supabase客户端
 const dashboardClient = window.supabase.createClient(DASHBOARD_URL, DASHBOARD_KEY);
@@ -23,6 +23,11 @@ let dataManager; // 数据管理器实例，用于同步数据
 let customTimeRange = null; // 自定义时间范围 { start: Date, end: Date }
 let selectedPositions = []; // 选中的岗位筛选条件
 let allRawData = []; // 存储所有原始数据
+
+// 性能优化：数据缓存机制
+const CACHE_KEY = 'dashboard_data_cache';
+const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+let isLoading = false; // 防止重复加载
 
 // 岗位列表
 const POSITION_LIST = ['学徒', '普工', '牙科技工', '牙科质检员'];
@@ -261,8 +266,38 @@ function filterDataByPosition(data) {
     });
 }
 
+// 性能优化：防抖函数
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// 性能优化：节流的图表更新
+let pendingChartUpdates = [];
+let chartUpdateScheduled = false;
+
+function scheduleChartUpdate(updateFn) {
+    pendingChartUpdates.push(updateFn);
+    
+    if (!chartUpdateScheduled) {
+        chartUpdateScheduled = true;
+        requestAnimationFrame(() => {
+            pendingChartUpdates.forEach(fn => fn());
+            pendingChartUpdates = [];
+            chartUpdateScheduled = false;
+        });
+    }
+}
+
 /**
- * 更新看板数据（带筛选）
+ * 更新看板数据（带筛选）- 优化版
  */
 function updateDashboardWithFilter() {
     if (!allRawData || allRawData.length === 0) return;
@@ -283,43 +318,116 @@ function updateDashboardWithFilter() {
     // 4. 获取所有指标
     const metrics = analytics.getMetrics();
 
-    // 5. 更新界面
+    // 5. 更新界面（优先更新关键指标）
     updateOverviewCards(metrics);
-    updateFunnelChart(metrics.funnel);
     updateFunnelTable(metrics.funnel);
-    updateConversionCharts(metrics.conversion, metrics.rejection);
-    updateTrendChart();
-    updateChannelAnalysis(metrics.channel);
-    updateChannelPieChart(metrics.channel);
-    updatePositionAnalysis(metrics.position);
-    updateDataQualitySummary(metrics.quality);
+    
+    // 6. 图表更新使用 requestAnimationFrame 分批渲染
+    scheduleChartUpdate(() => updateFunnelChart(metrics.funnel));
+    scheduleChartUpdate(() => updateConversionCharts(metrics.conversion, metrics.rejection));
+    scheduleChartUpdate(() => updateTrendChart());
+    scheduleChartUpdate(() => updateChannelPieChart(metrics.channel));
+    
+    // 7. 非关键更新延迟执行
+    setTimeout(() => {
+        updateChannelAnalysis(metrics.channel);
+        updatePositionAnalysis(metrics.position);
+        updateDataQualitySummary(metrics.quality);
+    }, 0);
 
     const endTime = performance.now();
     console.log(`数据更新耗时: ${(endTime - startTime).toFixed(2)}ms`);
 }
 
+// 优化：防抖版本的筛选更新
+const debouncedUpdateDashboard = debounce(updateDashboardWithFilter, 150);
+
 /**
- * 加载看板数据
+ * 从缓存获取数据
  */
-async function loadDashboardData() {
+function getCachedData() {
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (!cached) return null;
+        
+        const { data, timestamp, syncTime } = JSON.parse(cached);
+        const now = Date.now();
+        
+        // 检查缓存是否过期
+        if (now - timestamp > CACHE_DURATION) {
+            localStorage.removeItem(CACHE_KEY);
+            return null;
+        }
+        
+        return { data, syncTime };
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * 保存数据到缓存
+ */
+function setCachedData(data, syncTime) {
+    try {
+        const cache = {
+            data: data,
+            syncTime: syncTime,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+        console.warn('缓存数据失败:', e);
+    }
+}
+
+/**
+ * 清除数据缓存
+ */
+function clearDataCache() {
+    localStorage.removeItem(CACHE_KEY);
+}
+
+/**
+ * 加载看板数据 - 优化版（带缓存和防重复加载）
+ */
+async function loadDashboardData(forceRefresh = false) {
+    // 防止重复加载
+    if (isLoading) {
+        console.log('数据正在加载中，跳过重复请求');
+        return;
+    }
+    
+    isLoading = true;
     showLoading();
 
     try {
-        // 1. 先从applications表同步数据（包括渠道信息）
-        console.log('开始同步applications数据...');
-        let syncResult = { success: false };
+        // 1. 检查缓存（如果不是强制刷新）
+        if (!forceRefresh) {
+            const cached = getCachedData();
+            if (cached && cached.data && cached.data.length > 0) {
+                console.log('使用缓存数据:', cached.data.length, '条记录');
+                allRawData = cached.data;
+                updateDashboardWithFilter();
+                showContent();
+                isLoading = false;
+                
+                // 后台静默同步（不阻塞UI）
+                setTimeout(() => syncDataInBackground(), 100);
+                return;
+            }
+        }
+
+        // 2. 先从applications表同步数据（包括渠道信息）- 优化：减少日志输出
+        let syncResult = { success: false, syncTime: null };
         if (dataManager) {
             syncResult = await dataManager.syncFromApplications();
             if (syncResult.success) {
                 console.log('数据同步完成:', syncResult.message);
-            } else {
-                console.error('数据同步失败:', syncResult.error);
             }
-        } else {
-            console.warn('数据管理器未初始化，跳过同步');
         }
 
-        // 2. 从recruitment_process表加载数据
+        // 3. 从recruitment_process表加载数据
         const { data, error } = await dashboardClient
             .from('recruitment_process')
             .select('*')
@@ -329,22 +437,52 @@ async function loadDashboardData() {
 
         if (!data || data.length === 0) {
             showNoData();
+            isLoading = false;
             return;
         }
 
         console.log('加载到', data.length, '条记录');
-        console.log('第一条记录的source_channel:', data[0]?.source_channel);
 
-        // 保存原始数据
+        // 保存原始数据并缓存
         allRawData = data;
+        setCachedData(data, syncResult.syncTime || Date.now());
 
-        // 3. 应用筛选并更新看板
+        // 4. 应用筛选并更新看板
         updateDashboardWithFilter();
 
         showContent();
     } catch (error) {
         console.error('加载数据失败:', error);
         showError('加载数据失败，请稍后重试');
+    } finally {
+        isLoading = false;
+    }
+}
+
+/**
+ * 后台静默同步数据（不阻塞UI）
+ */
+async function syncDataInBackground() {
+    try {
+        if (!dataManager) return;
+        
+        const syncResult = await dataManager.syncFromApplications();
+        if (syncResult.success && (syncResult.inserted > 0 || syncResult.updated > 0)) {
+            console.log('后台同步发现新数据，刷新页面');
+            // 有新数据时刷新缓存
+            const { data, error } = await dashboardClient
+                .from('recruitment_process')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (!error && data) {
+                allRawData = data;
+                setCachedData(data, Date.now());
+                updateDashboardWithFilter();
+            }
+        }
+    } catch (e) {
+        console.warn('后台同步失败:', e);
     }
 }
 
@@ -520,7 +658,7 @@ function updateCard(elementId, value, unit) {
 }
 
 /**
- * 更新漏斗图
+ * 更新漏斗图 - 优化版（使用数据更新而非重建）
  */
 function updateFunnelChart(funnelData) {
     const ctx = document.getElementById('funnelChart');
@@ -528,8 +666,12 @@ function updateFunnelChart(funnelData) {
     
     const stages = funnelData.stages;
     
+    // 优化：如果图表已存在，只更新数据而不是重建
     if (charts.funnel) {
-        charts.funnel.destroy();
+        charts.funnel.data.labels = stages.map(s => s.name);
+        charts.funnel.data.datasets[0].data = stages.map(s => s.count);
+        charts.funnel.update('none'); // 'none' 模式禁用动画，提升性能
+        return;
     }
     
     charts.funnel = new Chart(ctx, {
@@ -644,17 +786,23 @@ function updateFunnelTable(funnelData) {
 }
 
 /**
- * 更新转化率图表
+ * 更新转化率图表 - 优化版
  */
 function updateConversionCharts(conversion, rejection) {
     // 转化率饼图
     const conversionCtx = document.getElementById('conversionChart');
     if (conversionCtx) {
+        // 优化：只更新数据不重建
         if (charts.conversion) {
-            charts.conversion.destroy();
-        }
-        
-        charts.conversion = new Chart(conversionCtx, {
+            charts.conversion.data.datasets[0].data = [
+                conversion.firstInterview,
+                conversion.secondInterview,
+                conversion.offerAcceptance,
+                conversion.onboard
+            ];
+            charts.conversion.update('none');
+        } else {
+            charts.conversion = new Chart(conversionCtx, {
             type: 'doughnut',
             data: {
                 labels: ['初试转化率', '复试转化率', 'Offer接受率', '报到率'],
@@ -703,16 +851,23 @@ function updateConversionCharts(conversion, rejection) {
                 }
             }
         });
+        } // fix: 添加缺失的else块闭合大括号 - 优化图表时遗漏
     }
     
     // 淘汰率柱状图
     const rejectionCtx = document.getElementById('rejectionChart');
     if (rejectionCtx) {
+        // 优化：只更新数据不重建
         if (charts.rejection) {
-            charts.rejection.destroy();
-        }
-        
-        charts.rejection = new Chart(rejectionCtx, {
+            charts.rejection.data.datasets[0].data = [
+                rejection.firstInterview,
+                rejection.secondInterview,
+                rejection.offer,
+                rejection.notOnboarded
+            ];
+            charts.rejection.update('none');
+        } else {
+            charts.rejection = new Chart(rejectionCtx, {
             type: 'bar',
             data: {
                 labels: ['初试淘汰率', '复试淘汰率', 'Offer拒绝率', '未报到率'],
@@ -762,30 +917,41 @@ function updateConversionCharts(conversion, rejection) {
                 }
             }
         });
+        } // fix: 添加缺失的else块闭合大括号 - 优化图表时遗漏
     }
 }
 
 /**
- * 更新趋势图
+ * 更新趋势图 - 优化版
  */
 function updateTrendChart() {
     const ctx = document.getElementById('trendChart');
     if (!ctx) return;
     
     const trendData = analytics.getTrendData(currentTimeRange === 'all' ? 30 : currentTimeRange);
+    const labels = trendData.map(d => d.date.slice(5)); // 只显示月-日
+    const newApplicants = trendData.map(d => d.newApplicants);
+    const firstPass = trendData.map(d => d.firstPass);
+    const onboarded = trendData.map(d => d.onboarded);
     
+    // 优化：如果图表已存在，只更新数据
     if (charts.trend) {
-        charts.trend.destroy();
+        charts.trend.data.labels = labels;
+        charts.trend.data.datasets[0].data = newApplicants;
+        charts.trend.data.datasets[1].data = firstPass;
+        charts.trend.data.datasets[2].data = onboarded;
+        charts.trend.update('none');
+        return;
     }
     
     charts.trend = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: trendData.map(d => d.date.slice(5)), // 只显示月-日
+            labels: labels,
             datasets: [
                 {
                     label: '新增应聘',
-                    data: trendData.map(d => d.newApplicants),
+                    data: newApplicants,
                     borderColor: 'rgba(54, 162, 235, 1)',
                     backgroundColor: 'rgba(54, 162, 235, 0.1)',
                     tension: 0.4,
@@ -807,7 +973,7 @@ function updateTrendChart() {
                 },
                 {
                     label: '初试通过',
-                    data: trendData.map(d => d.firstPass),
+                    data: firstPass,
                     borderColor: 'rgba(75, 192, 192, 1)',
                     backgroundColor: 'rgba(75, 192, 192, 0.1)',
                     tension: 0.4,
@@ -829,7 +995,7 @@ function updateTrendChart() {
                 },
                 {
                     label: '成功入职',
-                    data: trendData.map(d => d.onboarded),
+                    data: onboarded,
                     borderColor: 'rgba(153, 102, 255, 1)',
                     backgroundColor: 'rgba(153, 102, 255, 0.1)',
                     tension: 0.4,
@@ -925,16 +1091,11 @@ function updateChannelAnalysis(channelData) {
 }
 
 /**
- * 更新渠道占比饼图
+ * 更新渠道占比饼图 - 优化版
  */
 function updateChannelPieChart(channelData) {
     const ctx = document.getElementById('channelPieChart');
     if (!ctx) return;
-    
-    // 销毁旧图表
-    if (charts.channelPie) {
-        charts.channelPie.destroy();
-    }
     
     // 如果没有数据，显示空状态
     if (!channelData || channelData.length === 0) {
@@ -960,6 +1121,19 @@ function updateChannelPieChart(channelData) {
     
     // 计算总数用于百分比显示
     const total = data.reduce((sum, val) => sum + val, 0);
+    
+    // 优化：如果图表已存在且数据长度相同，只更新数据
+    if (charts.channelPie && charts.channelPie.data.labels.length === labels.length) {
+        charts.channelPie.data.labels = labels;
+        charts.channelPie.data.datasets[0].data = data;
+        charts.channelPie.update('none');
+        return;
+    }
+    
+    // 销毁旧图表（数据长度变化时需要重建）
+    if (charts.channelPie) {
+        charts.channelPie.destroy();
+    }
     
     // 配色方案 - 参考附件图片的柔和色调
     const backgroundColors = [

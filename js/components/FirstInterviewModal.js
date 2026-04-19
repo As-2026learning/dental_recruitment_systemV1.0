@@ -229,13 +229,15 @@ class FirstInterviewModal {
             data.current_status = 'pending';
             console.log('FirstInterviewModal - 设置状态为通过，进入复试阶段');
         } else if (data.first_interview_result === 'reject') {
+            // fix: 添加缺失的 current_stage 设置 - 初试不通过时环节应为 first_interview
+            data.current_stage = 'first_interview';
             data.current_status = 'reject';
             data.first_interview.reject_reason = formData.get('first_reject_reason');
             data.first_interview.reject_detail = formData.get('first_reject_detail');
             // 兼容旧字段
             data.first_reject_reason = formData.get('first_reject_reason');
             data.first_reject_detail = formData.get('first_reject_detail');
-            console.log('FirstInterviewModal - 设置状态为不通过');
+            console.log('FirstInterviewModal - 设置状态为不通过，环节为初试');
         } else {
             console.log('FirstInterviewModal - 未知的初试结果:', data.first_interview_result);
         }
