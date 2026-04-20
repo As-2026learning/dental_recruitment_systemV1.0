@@ -1,0 +1,262 @@
+/**
+ * 招聘流程管理模块 - 详情弹窗组件
+ * 用于展示候选人完整信息
+ */
+
+class DetailModal {
+    constructor(modalId = 'detailModal') {
+        this.modal = document.getElementById(modalId);
+        if (!this.modal) {
+            this.createModal(modalId);
+        }
+        this.content = this.modal.querySelector('.modal-content');
+        this.bindCloseEvents();
+    }
+
+    /**
+     * 创建弹窗DOM结构
+     */
+    createModal(modalId) {
+        this.modal = document.createElement('div');
+        this.modal.id = modalId;
+        this.modal.className = 'modal detail-modal';
+        this.modal.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3>招聘详情</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-content"></div>
+                <div class="modal-footer">
+                    <button class="btn-close">关闭</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(this.modal);
+    }
+
+    /**
+     * 绑定关闭事件
+     */
+    bindCloseEvents() {
+        // 点击遮罩关闭
+        this.modal.querySelector('.modal-overlay').addEventListener('click', () => this.hide());
+        
+        // 点击关闭按钮
+        this.modal.querySelector('.modal-close').addEventListener('click', () => this.hide());
+        
+        // 点击底部关闭按钮
+        this.modal.querySelector('.btn-close').addEventListener('click', () => this.hide());
+
+        // ESC键关闭
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isVisible()) {
+                this.hide();
+            }
+        });
+    }
+
+    /**
+     * 显示弹窗
+     */
+    show(record) {
+        const html = this.renderContent(record);
+        this.content.innerHTML = html;
+        this.modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // 禁止背景滚动
+    }
+
+    /**
+     * 隐藏弹窗
+     */
+    hide() {
+        this.modal.style.display = 'none';
+        document.body.style.overflow = ''; // 恢复背景滚动
+    }
+
+    /**
+     * 判断是否显示
+     */
+    isVisible() {
+        return this.modal.style.display === 'flex';
+    }
+
+    /**
+     * 渲染内容
+     */
+    renderContent(record) {
+        let html = '';
+
+        // fix: 添加招聘流程时间线
+        html += this.renderTimeline(record);
+
+        // 处理JSONB格式的初试信息，展开为独立字段
+        const processedRecord = { ...record };
+        if (record.first_interview && typeof record.first_interview === 'object') {
+            processedRecord.first_interview_time = record.first_interview.time || record.first_interview_time;
+            processedRecord.first_interviewer = record.first_interview.interviewer || record.first_interviewer;
+            processedRecord.first_interview_result = record.first_interview.result || record.first_interview_result;
+            processedRecord.first_reject_reason = record.first_interview.reject_reason || record.first_reject_reason;
+            processedRecord.first_reject_detail = record.first_interview.reject_detail || record.first_reject_detail;
+        }
+
+        // 遍历所有分组
+        for (const [groupKey, groupConfig] of Object.entries(DETAIL_FIELDS)) {
+            const groupFields = groupConfig.fields;
+            
+            // 过滤出有值的字段
+            const validFields = groupFields.filter(field => {
+                const value = processedRecord[field.field];
+                return value !== null && value !== undefined && value !== '';
+            });
+
+            // 对于复试信息分组，始终显示"是否接受offer"字段（如果在录用阶段）
+            if (groupKey === 'secondInterview' && record.current_stage === 'hired') {
+                const hasAcceptOffer = validFields.some(f => f.field === 'accept_offer');
+                if (!hasAcceptOffer && record.accept_offer) {
+                    const acceptOfferField = groupFields.find(f => f.field === 'accept_offer');
+                    if (acceptOfferField) {
+                        validFields.push(acceptOfferField);
+                    }
+                }
+                // 如果拒绝offer，显示拒绝原因
+                if (record.accept_offer === 'no' && record.offer_reject_reason) {
+                    const rejectReasonField = groupFields.find(f => f.field === 'offer_reject_reason');
+                    if (rejectReasonField && !validFields.some(f => f.field === 'offer_reject_reason')) {
+                        validFields.push(rejectReasonField);
+                    }
+                }
+            }
+
+            if (validFields.length === 0) continue;
+
+            // fix: 使用卡片式布局
+            html += `
+                <div class="detail-group-card">
+                    <h4 class="group-title">${groupConfig.label}</h4>
+                    <div class="detail-grid">
+                        ${validFields.map(field => this.renderField(processedRecord, field)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 如果拒绝offer，添加提示信息
+        if (record.current_stage === 'hired' && record.accept_offer === 'no') {
+            html = `
+                <div class="detail-alert detail-alert-danger" style="background-color: #fff2f0; border: 1px solid #ffccc7; padding: 12px 16px; margin-bottom: 16px; border-radius: 4px; color: #cf1322;">
+                    <strong>⚠️ 提示：</strong>该候选人已拒绝offer
+                    ${record.offer_reject_reason ? `<br><span style="margin-top: 8px; display: block;">拒绝原因：${record.offer_reject_reason}</span>` : ''}
+                </div>
+            ` + html;
+        }
+
+        return html;
+    }
+
+    /**
+     * fix: 渲染招聘流程时间线
+     */
+    renderTimeline(record) {
+        const stages = [
+            { key: 'application', label: '投递简历', icon: '📝' },
+            { key: 'first_interview', label: '初试', icon: '👤' },
+            { key: 'second_interview', label: '复试', icon: '🤝' },
+            { key: 'hired', label: '录用', icon: '✅' },
+            { key: 'onboard', label: '报到', icon: '🎯' }
+        ];
+
+        const currentStage = record.current_stage || 'application';
+        
+        // 确定当前阶段索引
+        let currentIndex = stages.findIndex(s => s.key === currentStage);
+        if (currentIndex === -1) currentIndex = 0;
+
+        // 检查是否有拒绝状态
+        const isRejected = record.current_status === 'reject' || 
+                          record.first_interview_result === 'reject' || 
+                          record.second_interview_result === 'reject' ||
+                          record.accept_offer === 'no';
+
+        let timelineHtml = '<div class="timeline-container">';
+        timelineHtml += '<div class="timeline-title">招聘流程进度</div>';
+        timelineHtml += '<div class="timeline">';
+
+        stages.forEach((stage, index) => {
+            let status = 'pending';
+            if (isRejected && index === currentIndex) {
+                status = 'reject';
+            } else if (index < currentIndex) {
+                status = 'completed';
+            } else if (index === currentIndex) {
+                status = 'current';
+            }
+
+            timelineHtml += `
+                <div class="timeline-item ${status}">
+                    <div class="timeline-icon">${stage.icon}</div>
+                    <div class="timeline-label">${stage.label}</div>
+                </div>
+            `;
+        });
+
+        timelineHtml += '</div></div>';
+        return timelineHtml;
+    }
+
+    /**
+     * 渲染单个字段
+     */
+    renderField(record, field) {
+        const value = record[field.field];
+        const formattedValue = this.formatValue(value, field.format);
+
+        // 根据字段类型添加特殊样式
+        let valueClass = '';
+        if (field.field.includes('result')) {
+            valueClass = this.getResultClass(value);
+        }
+
+        // 为工作经历字段添加 data-field 属性以便应用特殊样式
+        const dataFieldAttr = field.field === 'work_experience' ? 'data-field="work_experience"' : '';
+
+        return `
+            <div class="detail-item">
+                <label class="field-label">${field.label}</label>
+                <span class="field-value ${valueClass}" ${dataFieldAttr}>${formattedValue}</span>
+            </div>
+        `;
+    }
+
+    /**
+     * 格式化值
+     */
+    formatValue(value, formatType) {
+        if (FieldFormatters && FieldFormatters.format) {
+            return FieldFormatters.format(value, formatType);
+        }
+        return value || '-';
+    }
+
+    /**
+     * 获取结果样式类
+     */
+    getResultClass(value) {
+        switch (value) {
+            case 'pass':
+                return 'text-success';
+            case 'reject':
+                return 'text-danger';
+            case 'pending':
+                return 'text-warning';
+            default:
+                return '';
+        }
+    }
+}
+
+// 导出（如果在模块环境中）
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DetailModal;
+}
