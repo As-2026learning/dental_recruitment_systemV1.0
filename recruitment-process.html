@@ -139,6 +139,7 @@
                 <button id="btnFixData" class="btn-fix">🔧 修复数据状态</button>
             </div>
             <div class="toolbar-right">
+                <button id="btnRecycleBin" class="btn-recycle-bin" onclick="showRecycleBin()">🗑️ 回收站 <span id="recycleBinCount" style="background: #ff4d4f; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px;">0</span></button>
                 <button id="btnClearFilter" class="btn-clear-filter" style="display:none;">❌ 清除筛选</button>
                 <span id="totalCount">共 0 条记录</span>
             </div>
@@ -157,6 +158,34 @@
                 <!-- 分页组件将在这里渲染 -->
             </div>
         </section>
+    </div>
+
+    <!-- 回收站模态框 -->
+    <div id="recycleBinModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 1200px; width: 95%;">
+            <div class="modal-header">
+                <h2>🗑️ 回收站</h2>
+                <button class="close-btn" onclick="closeRecycleBin()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="recycle-bin-toolbar">
+                    <span style="color: #666; font-size: 14px;">回收站中的数据将在30天后自动清理</span>
+                    <div class="toolbar-actions">
+                        <button class="btn-secondary" onclick="loadRecycleBinData()">🔄 刷新</button>
+                        <button class="btn-danger" onclick="emptyRecycleBin()">🗑️ 清空回收站</button>
+                    </div>
+                </div>
+                <div class="recycle-bin-bulk-actions" id="recycleBinBulkActions" style="display: none; margin: 10px 0;">
+                    <span id="recycleBinSelectedCount" style="margin-right: 10px;">已选择 0 条记录</span>
+                    <button class="btn-restore" onclick="batchRestoreFromRecycleBin()">♻️ 批量恢复</button>
+                    <button class="btn-permanent-delete" onclick="batchPermanentDeleteFromRecycleBin()">⚠️ 彻底删除</button>
+                    <button class="btn-secondary" onclick="clearRecycleBinSelections()">取消选择</button>
+                </div>
+                <div id="recycleBinContainer" class="recycle-bin-container">
+                    <div class="loading-message">正在加载回收站数据...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 导航样式 -->
@@ -195,6 +224,215 @@
         .nav-link.logout:hover {
             background: #fff1f0;
             color: #ff4d4f;
+        }
+        
+        /* 回收站按钮样式 */
+        .btn-recycle-bin {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            color: #595959;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-recycle-bin:hover {
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+        
+        /* 回收站模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #262626;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        
+        /* 回收站工具栏 */
+        .recycle-bin-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* 回收站表格样式 */
+        .recycle-bin-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .recycle-bin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .recycle-bin-table th,
+        .recycle-bin-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .recycle-bin-table th {
+            background: #fafafa;
+            font-weight: 500;
+            color: #262626;
+            position: sticky;
+            top: 0;
+        }
+        .recycle-bin-table tr:hover {
+            background: #f5f5f5;
+        }
+        .recycle-bin-table tr.deleted-row {
+            background-color: #fff1f0;
+        }
+        .recycle-bin-table tr.deleted-row:hover {
+            background-color: #ffccc7;
+        }
+        
+        /* 按钮样式 */
+        .btn-secondary {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            color: #595959;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-secondary:hover {
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+        .btn-danger {
+            background: #ff4d4f;
+            border: 1px solid #ff4d4f;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-danger:hover {
+            background: #cf1322;
+            border-color: #cf1322;
+        }
+        .btn-restore {
+            background: #52c41a;
+            border: 1px solid #52c41a;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-restore:hover {
+            background: #389e0d;
+            border-color: #389e0d;
+        }
+        .btn-permanent-delete {
+            background: #ff4d4f;
+            border: 1px solid #ff4d4f;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn-permanent-delete:hover {
+            background: #cf1322;
+            border-color: #cf1322;
+        }
+        
+        /* 删除标记 */
+        .deleted-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #ff4d4f;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .delete-info {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state p {
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        /* 加载状态 */
+        .loading-message {
+            text-align: center;
+            padding: 40px;
+            color: #999;
         }
     </style>
 

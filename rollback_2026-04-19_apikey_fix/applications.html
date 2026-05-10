@@ -388,42 +388,6 @@
     .tab:hover { color: #667eea; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    
-    /* 回收站样式 */
-    .deleted-row {
-      background-color: #fff1f0 !important;
-      opacity: 0.8;
-    }
-    .deleted-row:hover {
-      background-color: #ffccc7 !important;
-    }
-    .deleted-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      background: #ff4d4f;
-      color: white;
-      border-radius: 4px;
-      font-size: 11px;
-      margin-left: 8px;
-    }
-    .action-btn-restore {
-      background: #52c41a;
-      color: white;
-    }
-    .action-btn-restore:hover {
-      background: #389e0d;
-    }
-    .action-btn-permanent-delete {
-      background: #ff4d4f;
-      color: white;
-    }
-    .action-btn-permanent-delete:hover {
-      background: #cf1322;
-    }
-    .delete-info {
-      color: #999;
-      font-size: 12px;
-    }
     @media (max-width: 768px) {
       .admin-filters { flex-direction: column; }
       .data-table { font-size: 12px; }
@@ -489,7 +453,6 @@
       <div class="tabs">
         <button class="tab active" onclick="switchTab('applications')">应聘信息管理</button>
         <button class="tab" onclick="switchTab('bookings')">面试预约管理</button>
-        <button class="tab" onclick="switchTab('recycleBin')">🗑️ 回收站 <span id="recycleBinCount" style="background: #ff4d4f; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px;">0</span></button>
       </div>
 
       <!-- 应聘信息标签页 -->
@@ -562,27 +525,6 @@
         </div>
 
         <div id="bookingsContainer">
-          <div class="loading"><div class="spinner"></div></div>
-        </div>
-      </div>
-
-      <!-- 回收站标签页 -->
-      <div id="recycleBinTab" class="tab-content">
-        <div class="admin-filters">
-          <span style="color: #666; font-size: 14px;">回收站中的数据将在30天后自动清理</span>
-          <button class="btn btn-secondary" onclick="loadRecycleBinData()">🔄 刷新</button>
-          <button class="btn btn-danger" onclick="emptyRecycleBin()">🗑️ 清空回收站</button>
-        </div>
-        <div class="admin-filters" id="recycleBinBulkActions" style="display: none;">
-          <div class="bulk-actions">
-            <span class="bulk-actions-info" id="recycleBinSelectedCount">已选择 0 条记录</span>
-            <button class="btn" onclick="batchRestoreFromRecycleBin()">♻️ 批量恢复</button>
-            <button class="btn btn-danger" onclick="batchPermanentDelete()">⚠️ 彻底删除</button>
-            <button class="btn btn-secondary" onclick="clearRecycleBinSelections()">取消选择</button>
-          </div>
-        </div>
-
-        <div id="recycleBinContainer">
           <div class="loading"><div class="spinner"></div></div>
         </div>
       </div>
@@ -745,6 +687,22 @@
         return currentUser.role === 'admin';
       }
       return true;
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      var tabs = document.querySelectorAll('.tab');
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      event.target.classList.add('active');
+
+      document.querySelectorAll('.tab-content').forEach(function(content) {
+        content.classList.remove('active');
+      });
+      document.getElementById(tab + 'Tab').classList.add('active');
+
+      if (tab === 'bookings' && allBookings.length === 0) {
+        loadBookings();
+      }
     }
 
     function closeModal(modalId) {
@@ -1662,304 +1620,6 @@
         loadStats();
       } catch (e) {
         alert('批量删除失败: ' + e.message);
-      }
-    }
-
-    // ============================================
-    // 回收站功能
-    // ============================================
-    
-    // 全局变量：存储回收站选中的记录
-    var selectedRecycleBinIds = new Set();
-    var recycleBinData = [];
-
-    // 切换标签页
-    function switchTab(tab) {
-      currentTab = tab;
-      var tabs = document.querySelectorAll('.tab');
-      tabs.forEach(function(t) { t.classList.remove('active'); });
-      event.target.classList.add('active');
-
-      document.querySelectorAll('.tab-content').forEach(function(content) {
-        content.classList.remove('active');
-      });
-      
-      if (tab === 'applications') {
-        document.getElementById('applicationsTab').classList.add('active');
-        loadApplications();
-      } else if (tab === 'bookings') {
-        document.getElementById('bookingsTab').classList.add('active');
-        loadBookings();
-      } else if (tab === 'recycleBin') {
-        document.getElementById('recycleBinTab').classList.add('active');
-        loadRecycleBinData();
-      }
-    }
-
-    // 加载回收站数据
-    async function loadRecycleBinData() {
-      var container = document.getElementById('recycleBinContainer');
-      container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-
-      try {
-        // 从recruitment_process表加载已删除的数据
-        var result = await db.from('recruitment_process')
-          .select('*')
-          .eq('is_deleted', true)
-          .order('deleted_at', { ascending: false });
-
-        if (result.error) throw result.error;
-
-        recycleBinData = result.data || [];
-        
-        // 更新回收站计数
-        document.getElementById('recycleBinCount').textContent = recycleBinData.length;
-        
-        renderRecycleBin(recycleBinData);
-      } catch (e) {
-        console.error('加载回收站数据失败:', e);
-        container.innerHTML = '<div class="alert alert-error">加载回收站数据失败: ' + e.message + '</div>';
-      }
-    }
-
-    // 渲染回收站列表
-    function renderRecycleBin(data) {
-      var container = document.getElementById('recycleBinContainer');
-
-      if (data.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>回收站为空</p></div>';
-        document.getElementById('recycleBinBulkActions').style.display = 'none';
-        return;
-      }
-
-      var html = '<table class="data-table"><thead><tr>';
-      html += '<th class="checkbox-cell"><input type="checkbox" id="selectAllRecycleBin" onchange="toggleAllRecycleBin(this)"></th>';
-      html += '<th>序号</th>';
-      html += '<th>姓名</th>';
-      html += '<th>电话</th>';
-      html += '<th>岗位</th>';
-      html += '<th>删除时间</th>';
-      html += '<th>删除人</th>';
-      html += '<th>操作</th>';
-      html += '</tr></thead><tbody>';
-
-      for (var i = 0; i < data.length; i++) {
-        var item = data[i];
-        var deletedAt = item.deleted_at ? new Date(item.deleted_at).toLocaleString('zh-CN') : '-';
-        var deletedBy = item.deleted_by || '系统';
-
-        html += '<tr class="deleted-row">';
-        html += '<td class="checkbox-cell"><input type="checkbox" class="recyclebin-checkbox" value="' + item.id + '" onchange="updateRecycleBinSelections()"></td>';
-        html += '<td>' + (i + 1) + '</td>';
-        html += '<td>' + (item.name || '-') + '<span class="deleted-badge">已删除</span></td>';
-        html += '<td>' + (item.phone || '-') + '</td>';
-        html += '<td>' + (item.position || '-') + '</td>';
-        html += '<td class="delete-info">' + deletedAt + '</td>';
-        html += '<td class="delete-info">' + deletedBy + '</td>';
-        html += '<td>';
-        html += '<button class="action-btn action-btn-restore" onclick="restoreFromRecycleBin(' + item.id + ')">♻️ 恢复</button>';
-        html += '<button class="action-btn action-btn-permanent-delete" onclick="permanentDelete(' + item.id + ', \'' + (item.name || '') + '\')">⚠️ 彻底删除</button>';
-        html += '</td></tr>';
-      }
-
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    }
-
-    // 回收站：全选/取消全选
-    function toggleAllRecycleBin(checkbox) {
-      var checkboxes = document.querySelectorAll('.recyclebin-checkbox');
-      checkboxes.forEach(function(cb) {
-        cb.checked = checkbox.checked;
-      });
-      updateRecycleBinSelections();
-    }
-
-    // 回收站：更新选中状态
-    function updateRecycleBinSelections() {
-      var checkboxes = document.querySelectorAll('.recyclebin-checkbox:checked');
-      selectedRecycleBinIds.clear();
-      checkboxes.forEach(function(cb) {
-        selectedRecycleBinIds.add(parseInt(cb.value));
-      });
-      
-      var count = selectedRecycleBinIds.size;
-      document.getElementById('recycleBinSelectedCount').textContent = '已选择 ' + count + ' 条记录';
-      document.getElementById('recycleBinBulkActions').style.display = count > 0 ? 'block' : 'none';
-      
-      // 更新全选状态
-      var selectAll = document.getElementById('selectAllRecycleBin');
-      var allCheckboxes = document.querySelectorAll('.recyclebin-checkbox');
-      if (selectAll && allCheckboxes.length > 0) {
-        selectAll.checked = count === allCheckboxes.length;
-      }
-    }
-
-    // 回收站：清空选择
-    function clearRecycleBinSelections() {
-      selectedRecycleBinIds.clear();
-      var checkboxes = document.querySelectorAll('.recyclebin-checkbox');
-      checkboxes.forEach(function(cb) {
-        cb.checked = false;
-      });
-      document.getElementById('recycleBinBulkActions').style.display = 'none';
-    }
-
-    // 从回收站恢复单条记录
-    async function restoreFromRecycleBin(id) {
-      if (!confirm('确定要恢复这条记录吗？')) return;
-
-      try {
-        var result = await db.from('recruitment_process')
-          .update({
-            is_deleted: false,
-            deleted_at: null,
-            deleted_by: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id);
-
-        if (result.error) throw result.error;
-
-        alert('恢复成功！');
-        loadRecycleBinData();
-        loadStats();
-      } catch (e) {
-        alert('恢复失败: ' + e.message);
-      }
-    }
-
-    // 批量恢复
-    async function batchRestoreFromRecycleBin() {
-      var count = selectedRecycleBinIds.size;
-      if (count === 0) {
-        alert('请先选择要恢复的记录');
-        return;
-      }
-
-      if (!confirm('确定要批量恢复选中的 ' + count + ' 条记录吗？')) return;
-
-      try {
-        var ids = Array.from(selectedRecycleBinIds);
-        var successCount = 0;
-        var failCount = 0;
-        var errors = [];
-
-        for (var i = 0; i < ids.length; i++) {
-          try {
-            var result = await db.from('recruitment_process')
-              .update({
-                is_deleted: false,
-                deleted_at: null,
-                deleted_by: null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', ids[i]);
-            if (result.error) throw result.error;
-            successCount++;
-          } catch (e) {
-            failCount++;
-            errors.push('ID ' + ids[i] + ': ' + e.message);
-          }
-        }
-
-        var message = '恢复完成！成功 ' + successCount + ' 条';
-        if (failCount > 0) {
-          message += '，失败 ' + failCount + ' 条\n\n失败详情：\n' + errors.join('\n');
-        }
-        alert(message);
-
-        clearRecycleBinSelections();
-        loadRecycleBinData();
-        loadStats();
-      } catch (e) {
-        alert('批量恢复失败: ' + e.message);
-      }
-    }
-
-    // 彻底删除单条记录
-    async function permanentDelete(id, name) {
-      if (!confirm('⚠️ 警告：彻底删除后数据将无法恢复！\n\n确定要彻底删除 "' + (name || '该记录') + '" 吗？')) return;
-
-      try {
-        var result = await db.from('recruitment_process')
-          .delete()
-          .eq('id', id);
-
-        if (result.error) throw result.error;
-
-        alert('已彻底删除！');
-        loadRecycleBinData();
-        loadStats();
-      } catch (e) {
-        alert('删除失败: ' + e.message);
-      }
-    }
-
-    // 批量彻底删除
-    async function batchPermanentDelete() {
-      var count = selectedRecycleBinIds.size;
-      if (count === 0) {
-        alert('请先选择要删除的记录');
-        return;
-      }
-
-      if (!confirm('⚠️ 警告：此操作将永久删除选中的 ' + count + ' 条记录，且无法恢复！\n\n确定要继续吗？')) return;
-
-      try {
-        var ids = Array.from(selectedRecycleBinIds);
-        var successCount = 0;
-        var failCount = 0;
-        var errors = [];
-
-        for (var i = 0; i < ids.length; i++) {
-          try {
-            var result = await db.from('recruitment_process')
-              .delete()
-              .eq('id', ids[i]);
-            if (result.error) throw result.error;
-            successCount++;
-          } catch (e) {
-            failCount++;
-            errors.push('ID ' + ids[i] + ': ' + e.message);
-          }
-        }
-
-        var message = '删除完成！成功 ' + successCount + ' 条';
-        if (failCount > 0) {
-          message += '，失败 ' + failCount + ' 条\n\n失败详情：\n' + errors.join('\n');
-        }
-        alert(message);
-
-        clearRecycleBinSelections();
-        loadRecycleBinData();
-        loadStats();
-      } catch (e) {
-        alert('批量删除失败: ' + e.message);
-      }
-    }
-
-    // 清空回收站
-    async function emptyRecycleBin() {
-      if (recycleBinData.length === 0) {
-        alert('回收站已经是空的');
-        return;
-      }
-
-      if (!confirm('⚠️ 警告：此操作将永久删除回收站中的所有 ' + recycleBinData.length + ' 条记录，且无法恢复！\n\n确定要继续吗？')) return;
-
-      try {
-        var result = await db.from('recruitment_process')
-          .delete()
-          .eq('is_deleted', true);
-
-        if (result.error) throw result.error;
-
-        alert('回收站已清空！');
-        loadRecycleBinData();
-        loadStats();
-      } catch (e) {
-        alert('清空回收站失败: ' + e.message);
       }
     }
 

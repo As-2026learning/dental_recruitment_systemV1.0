@@ -398,6 +398,75 @@
             background: #ff4d4f;
             color: white;
         }
+
+        /* 回收站按钮样式 */
+        .btn-recycle-bin {
+            background: #fff7e6;
+            color: #fa8c16;
+            border: 1px solid #ffd591;
+        }
+
+        .btn-recycle-bin:hover {
+            background: #fa8c16;
+            color: white;
+        }
+
+        /* 回收站工具栏 */
+        .recycle-bin-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 回收站批量操作栏 */
+        .recycle-bin-bulk-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #e6f7ff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        /* 回收站容器 */
+        .recycle-bin-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* 恢复按钮 */
+        .action-btn-restore {
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+
+        .action-btn-restore:hover {
+            background: #52c41a;
+            color: white;
+        }
+
+        /* 彻底删除按钮 */
+        .action-btn-permanent-delete {
+            background: #fff1f0;
+            color: #ff4d4f;
+            border: 1px solid #ffa39e;
+        }
+
+        .action-btn-permanent-delete:hover {
+            background: #ff4d4f;
+            color: white;
+        }
         
         /* 分页 */
         .pagination-container {
@@ -883,6 +952,9 @@
                     <button class="btn btn-success" onclick="exportToExcel()">
                         📊 导出Excel
                     </button>
+                    <button class="btn btn-recycle-bin" onclick="showRecycleBin()">
+                        🗑️ 回收站 <span id="recycleBinCount" style="background: #ff4d4f; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px;">0</span>
+                    </button>
                     <button class="btn btn-secondary" onclick="batchDelete()" id="batchDeleteBtn" disabled>
                         🗑️ 批量删除
                     </button>
@@ -945,6 +1017,34 @@
                 <div class="progress-bar" id="progressBar"></div>
             </div>
             <div class="progress-text" id="progressText">0%</div>
+        </div>
+    </div>
+
+    <!-- 回收站模态框 -->
+    <div class="modal-overlay" id="recycleBinModal">
+        <div class="modal" style="max-width: 1200px; width: 95%;">
+            <div class="modal-header">
+                <h2>🗑️ 回收站</h2>
+                <button class="modal-close" onclick="closeRecycleBin()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="recycle-bin-toolbar">
+                    <span style="color: #666; font-size: 14px;">回收站中的数据将在30天后自动清理</span>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-secondary" onclick="loadRecycleBinData()">🔄 刷新</button>
+                        <button class="btn btn-danger" onclick="emptyRecycleBin()">🗑️ 清空回收站</button>
+                    </div>
+                </div>
+                <div class="recycle-bin-bulk-actions" id="recycleBinBulkActions" style="display: none; margin: 10px 0;">
+                    <span id="recycleBinSelectedCount" style="margin-right: 10px;">已选择 0 条记录</span>
+                    <button class="btn btn-success" onclick="batchRestoreFromRecycleBin()">♻️ 批量恢复</button>
+                    <button class="btn btn-danger" onclick="batchPermanentDeleteFromRecycleBin()">⚠️ 彻底删除</button>
+                    <button class="btn btn-secondary" onclick="clearRecycleBinSelections()">取消选择</button>
+                </div>
+                <div id="recycleBinContainer">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1129,10 +1229,10 @@
             let dbError = null;
             
             try {
-                // 1. 加载数据库中的应聘信息（带超时）
+                // 1. 加载数据库中的应聘信息（带超时，排除已删除的）
                 try {
                     const result = await Promise.race([
-                        supabaseClient.from('applications').select('*').order('created_at', { ascending: false }),
+                        supabaseClient.from('applications').select('*').eq('is_deleted', false).order('created_at', { ascending: false }),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('数据库连接超时')), 10000))
                     ]);
                     
@@ -2336,27 +2436,33 @@
             }
         }
         
-        // ==================== 删除 ====================
+        // ==================== 删除（软删除） ====================
         async function deleteApplication(id, name) {
-            if (!confirm(`确定要删除应聘人 "${name}" 的申请记录吗？\n\n此操作不可恢复！`)) return;
-            
+            if (!confirm(`确定要删除应聘人 "${name}" 的申请记录吗？\n\n删除后可在回收站中恢复。`)) return;
+
             try {
-                // 先删除关联的预约记录
-                const { error: bookingError } = await supabaseClient.from('bookings').delete().eq('application_id', id);
-                if (bookingError) {
-                    console.warn('删除关联预约记录失败:', bookingError);
-                    // 继续删除申请记录，不阻止流程
-                }
-                
-                // 删除申请记录
-                const { error } = await supabaseClient.from('applications').delete().eq('id', id);
+                // 获取当前用户信息
+                const currentUserStr = localStorage.getItem('currentUser');
+                const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+                const deletedBy = currentUser ? currentUser.username : 'system';
+
+                // 软删除：更新is_deleted标志
+                const { error } = await supabaseClient.from('applications').update({
+                    is_deleted: true,
+                    deleted_at: new Date().toISOString(),
+                    deleted_by: deletedBy,
+                    updated_at: new Date().toISOString()
+                }).eq('id', id);
+
                 if (error) {
                     throw error;
                 }
-                
+
                 // 刷新数据
                 await loadData();
-                alert('删除成功！');
+                // 更新回收站计数
+                await updateRecycleBinCount();
+                alert('已移动到回收站！');
             } catch (e) {
                 console.error('删除失败:', e);
                 alert('删除失败: ' + (e.message || '未知错误'));
@@ -2539,51 +2645,55 @@
             }
         });
         
-        // ==================== 批量删除 ====================
+        // ==================== 批量删除（软删除） ====================
         async function batchDelete() {
             const checkboxes = document.querySelectorAll('.row-checkbox:checked');
             if (checkboxes.length === 0) {
                 alert('请先选择要删除的记录');
                 return;
             }
-            
+
             const ids = Array.from(checkboxes).map(cb => cb.value);
             const names = Array.from(checkboxes).map(cb => {
                 const row = cb.closest('tr');
                 return row ? row.cells[1].textContent : '';
             });
-            
-            if (!confirm(`确定要删除选中的 ${ids.length} 条应聘记录吗？\n\n此操作不可恢复！`)) {
+
+            if (!confirm(`确定要删除选中的 ${ids.length} 条应聘记录吗？\n\n删除后可在回收站中恢复。`)) {
                 return;
             }
-            
+
             const overlay = document.getElementById('progressOverlay');
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
             const progressTitle = document.getElementById('progressTitle');
-            
+
             progressTitle.textContent = '正在删除数据...';
             overlay.classList.add('show');
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
-            
+
+            // 获取当前用户信息
+            const currentUserStr = localStorage.getItem('currentUser');
+            const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+            const deletedBy = currentUser ? currentUser.username : 'system';
+
             let successCount = 0;
             let failCount = 0;
             const errors = [];
-            
+
             for (let i = 0; i < ids.length; i++) {
                 try {
                     const id = ids[i];
-                    
-                    // 先删除关联的预约记录
-                    try {
-                        await supabaseClient.from('bookings').delete().eq('application_id', id);
-                    } catch (e) {
-                        console.warn('删除关联预约记录失败:', e);
-                    }
-                    
-                    // 删除申请记录
-                    const { error } = await supabaseClient.from('applications').delete().eq('id', id);
+
+                    // 软删除：更新is_deleted标志
+                    const { error } = await supabaseClient.from('applications').update({
+                        is_deleted: true,
+                        deleted_at: new Date().toISOString(),
+                        deleted_by: deletedBy,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', id);
+
                     if (error) {
                         throw error;
                     }
@@ -2593,28 +2703,475 @@
                     errors.push(`${names[i] || ids[i]}: ${e.message}`);
                     console.error('删除失败:', e);
                 }
-                
+
                 // 更新进度
                 const progress = Math.round(((i + 1) / ids.length) * 100);
                 progressBar.style.width = progress + '%';
                 progressText.textContent = `${progress}% (${i + 1}/${ids.length})`;
             }
-            
+
             setTimeout(() => {
                 overlay.classList.remove('show');
-                
+
                 // 刷新数据
                 loadData();
-                
+                // 更新回收站计数
+                updateRecycleBinCount();
+
                 // 显示结果
                 if (failCount === 0) {
-                    alert(`删除成功！共删除 ${successCount} 条记录。`);
+                    alert(`删除成功！共移动 ${successCount} 条记录到回收站。`);
                 } else {
                     alert(`删除完成！\n成功: ${successCount} 条\n失败: ${failCount} 条\n\n失败详情:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
                 }
             }, 500);
         }
         
+        // ==================== 回收站功能 ====================
+
+        // 更新回收站计数
+        async function updateRecycleBinCount() {
+            try {
+                const { count, error } = await supabaseClient
+                    .from('applications')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('is_deleted', true);
+
+                if (error) throw error;
+
+                const countElement = document.getElementById('recycleBinCount');
+                if (countElement) {
+                    countElement.textContent = count || 0;
+                }
+            } catch (e) {
+                console.error('更新回收站计数失败:', e);
+            }
+        }
+
+        // 显示回收站
+        function showRecycleBin() {
+            document.getElementById('recycleBinModal').classList.add('show');
+            loadRecycleBinData();
+        }
+
+        // 关闭回收站
+        function closeRecycleBin() {
+            document.getElementById('recycleBinModal').classList.remove('show');
+        }
+
+        // 加载回收站数据
+        async function loadRecycleBinData() {
+            const container = document.getElementById('recycleBinContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            try {
+                // 加载已删除的应聘信息
+                const { data: deletedApps, error } = await supabaseClient
+                    .from('applications')
+                    .select('*')
+                    .eq('is_deleted', true)
+                    .order('deleted_at', { ascending: false });
+
+                if (error) throw error;
+
+                // 加载预约信息
+                const { data: allBookings } = await supabaseClient.from('bookings').select('*');
+
+                // 关联数据
+                const deletedApplications = deletedApps.map(app => {
+                    const dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
+                    const phone = app.phone || dynamicFields.phone || '';
+
+                    const bookings = (allBookings || []).filter(b =>
+                        b.application_id === app.id || (phone && b.phone === phone)
+                    );
+
+                    const booking = bookings.length > 0
+                        ? bookings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+                        : null;
+
+                    return {
+                        ...app,
+                        booking: booking,
+                        name: app.name || dynamicFields.name || '',
+                        phone: phone,
+                        position: app.position || dynamicFields.position || ''
+                    };
+                });
+
+                renderRecycleBinTable(deletedApplications);
+            } catch (e) {
+                console.error('加载回收站数据失败:', e);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>加载失败: ${e.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染回收站表格
+        function renderRecycleBinTable(applications) {
+            const container = document.getElementById('recycleBinContainer');
+
+            if (applications.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🗑️</div>
+                        <p>回收站为空</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const statusMap = { 'pending': '待处理', 'processed': '已面试', 'rejected': '失约' };
+
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell">
+                                <input type="checkbox" id="selectAllRecycleBin" onchange="toggleSelectAllRecycleBin(this)">
+                            </th>
+                            <th>姓名</th>
+                            <th>岗位</th>
+                            <th>电话</th>
+                            <th>应聘状态</th>
+                            <th>删除时间</th>
+                            <th>删除人</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            applications.forEach(app => {
+                html += `
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="recycle-bin-checkbox" value="${app.id}">
+                        </td>
+                        <td>${app.name || '-'}</td>
+                        <td>${app.position || '-'}</td>
+                        <td>${app.phone || '-'}</td>
+                        <td><span class="status-tag status-${app.status}">${statusMap[app.status] || '待处理'}</span></td>
+                        <td>${app.deleted_at ? new Date(app.deleted_at).toLocaleString('zh-CN') : '-'}</td>
+                        <td>${app.deleted_by || '-'}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button type="button" class="action-btn action-btn-restore" onclick="restoreApplication('${app.id}')">♻️ 恢复</button>
+                                <button type="button" class="action-btn action-btn-permanent-delete" onclick="permanentDeleteApplication('${app.id}', '${app.name || ''}')">⚠️ 彻底删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // 全选回收站
+        function toggleSelectAllRecycleBin(checkbox) {
+            const checkboxes = document.querySelectorAll('.recycle-bin-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+            updateRecycleBinBulkActions();
+        }
+
+        // 更新回收站批量操作栏
+        function updateRecycleBinBulkActions() {
+            const checkboxes = document.querySelectorAll('.recycle-bin-checkbox:checked');
+            const bulkActions = document.getElementById('recycleBinBulkActions');
+            const countSpan = document.getElementById('recycleBinSelectedCount');
+
+            if (checkboxes.length > 0) {
+                bulkActions.style.display = 'flex';
+                countSpan.textContent = `已选择 ${checkboxes.length} 条记录`;
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        // 监听回收站复选框变化
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('recycle-bin-checkbox')) {
+                updateRecycleBinBulkActions();
+                // 更新全选框状态
+                const allCheckboxes = document.querySelectorAll('.recycle-bin-checkbox');
+                const checkedCheckboxes = document.querySelectorAll('.recycle-bin-checkbox:checked');
+                const selectAllCheckbox = document.getElementById('selectAllRecycleBin');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = checkedCheckboxes.length === allCheckboxes.length && allCheckboxes.length > 0;
+                    selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                }
+            }
+        });
+
+        // 恢复应聘信息
+        async function restoreApplication(id) {
+            if (!confirm('确定要恢复这条记录吗？')) return;
+
+            try {
+                const { error } = await supabaseClient.from('applications').update({
+                    is_deleted: false,
+                    deleted_at: null,
+                    deleted_by: null,
+                    updated_at: new Date().toISOString()
+                }).eq('id', id);
+
+                if (error) throw error;
+
+                // 刷新回收站数据
+                await loadRecycleBinData();
+                // 刷新主数据
+                await loadData();
+                // 更新回收站计数
+                await updateRecycleBinCount();
+
+                alert('恢复成功！');
+            } catch (e) {
+                console.error('恢复失败:', e);
+                alert('恢复失败: ' + (e.message || '未知错误'));
+            }
+        }
+
+        // 批量恢复
+        async function batchRestoreFromRecycleBin() {
+            const checkboxes = document.querySelectorAll('.recycle-bin-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('请先选择要恢复的记录');
+                return;
+            }
+
+            const ids = Array.from(checkboxes).map(cb => cb.value);
+
+            if (!confirm(`确定要恢复选中的 ${ids.length} 条记录吗？`)) {
+                return;
+            }
+
+            const overlay = document.getElementById('progressOverlay');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressTitle = document.getElementById('progressTitle');
+
+            progressTitle.textContent = '正在恢复数据...';
+            overlay.classList.add('show');
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < ids.length; i++) {
+                try {
+                    const { error } = await supabaseClient.from('applications').update({
+                        is_deleted: false,
+                        deleted_at: null,
+                        deleted_by: null,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', ids[i]);
+
+                    if (error) throw error;
+                    successCount++;
+                } catch (e) {
+                    failCount++;
+                    console.error('恢复失败:', e);
+                }
+
+                const progress = Math.round(((i + 1) / ids.length) * 100);
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `${progress}% (${i + 1}/${ids.length})`;
+            }
+
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                loadRecycleBinData();
+                loadData();
+                updateRecycleBinCount();
+
+                if (failCount === 0) {
+                    alert(`恢复成功！共恢复 ${successCount} 条记录。`);
+                } else {
+                    alert(`恢复完成！\n成功: ${successCount} 条\n失败: ${failCount} 条`);
+                }
+            }, 500);
+        }
+
+        // 彻底删除应聘信息
+        async function permanentDeleteApplication(id, name) {
+            if (!confirm(`⚠️ 警告：确定要彻底删除 "${name}" 的申请记录吗？\n\n此操作不可恢复！`)) return;
+
+            try {
+                // 删除关联的预约记录
+                const { error: bookingError } = await supabaseClient.from('bookings').delete().eq('application_id', id);
+                if (bookingError) {
+                    console.warn('删除关联预约记录失败:', bookingError);
+                }
+
+                // 彻底删除申请记录
+                const { error } = await supabaseClient.from('applications').delete().eq('id', id);
+                if (error) throw error;
+
+                // 刷新回收站数据
+                await loadRecycleBinData();
+                // 更新回收站计数
+                await updateRecycleBinCount();
+
+                alert('彻底删除成功！');
+            } catch (e) {
+                console.error('彻底删除失败:', e);
+                alert('彻底删除失败: ' + (e.message || '未知错误'));
+            }
+        }
+
+        // 批量彻底删除
+        async function batchPermanentDeleteFromRecycleBin() {
+            const checkboxes = document.querySelectorAll('.recycle-bin-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('请先选择要彻底删除的记录');
+                return;
+            }
+
+            const ids = Array.from(checkboxes).map(cb => cb.value);
+
+            if (!confirm(`⚠️ 警告：确定要彻底删除选中的 ${ids.length} 条记录吗？\n\n此操作不可恢复！`)) {
+                return;
+            }
+
+            const overlay = document.getElementById('progressOverlay');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressTitle = document.getElementById('progressTitle');
+
+            progressTitle.textContent = '正在彻底删除数据...';
+            overlay.classList.add('show');
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < ids.length; i++) {
+                try {
+                    const id = ids[i];
+
+                    // 删除关联的预约记录
+                    try {
+                        await supabaseClient.from('bookings').delete().eq('application_id', id);
+                    } catch (e) {
+                        console.warn('删除关联预约记录失败:', e);
+                    }
+
+                    // 彻底删除申请记录
+                    const { error } = await supabaseClient.from('applications').delete().eq('id', id);
+                    if (error) throw error;
+                    successCount++;
+                } catch (e) {
+                    failCount++;
+                    console.error('彻底删除失败:', e);
+                }
+
+                const progress = Math.round(((i + 1) / ids.length) * 100);
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `${progress}% (${i + 1}/${ids.length})`;
+            }
+
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                loadRecycleBinData();
+                updateRecycleBinCount();
+
+                if (failCount === 0) {
+                    alert(`彻底删除成功！共删除 ${successCount} 条记录。`);
+                } else {
+                    alert(`删除完成！\n成功: ${successCount} 条\n失败: ${failCount} 条`);
+                }
+            }, 500);
+        }
+
+        // 清空回收站
+        async function emptyRecycleBin() {
+            if (!confirm('⚠️ 警告：确定要清空回收站吗？\n\n回收站中的所有记录将被彻底删除，此操作不可恢复！')) {
+                return;
+            }
+
+            try {
+                const { data: deletedApps } = await supabaseClient
+                    .from('applications')
+                    .select('id')
+                    .eq('is_deleted', true);
+
+                if (!deletedApps || deletedApps.length === 0) {
+                    alert('回收站已经是空的');
+                    return;
+                }
+
+                if (!confirm(`回收站中有 ${deletedApps.length} 条记录，确定要全部彻底删除吗？`)) {
+                    return;
+                }
+
+                const overlay = document.getElementById('progressOverlay');
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText');
+                const progressTitle = document.getElementById('progressTitle');
+
+                progressTitle.textContent = '正在清空回收站...';
+                overlay.classList.add('show');
+
+                let successCount = 0;
+                let failCount = 0;
+
+                for (let i = 0; i < deletedApps.length; i++) {
+                    const id = deletedApps[i].id;
+
+                    try {
+                        // 删除关联的预约记录
+                        try {
+                            await supabaseClient.from('bookings').delete().eq('application_id', id);
+                        } catch (e) {
+                            console.warn('删除关联预约记录失败:', e);
+                        }
+
+                        // 彻底删除申请记录
+                        const { error } = await supabaseClient.from('applications').delete().eq('id', id);
+                        if (error) throw error;
+                        successCount++;
+                    } catch (e) {
+                        failCount++;
+                        console.error('删除失败:', e);
+                    }
+
+                    const progress = Math.round(((i + 1) / deletedApps.length) * 100);
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = `${progress}% (${i + 1}/${deletedApps.length})`;
+                }
+
+                setTimeout(() => {
+                    overlay.classList.remove('show');
+                    loadRecycleBinData();
+                    updateRecycleBinCount();
+
+                    if (failCount === 0) {
+                        alert(`回收站已清空！共删除 ${successCount} 条记录。`);
+                    } else {
+                        alert(`清空完成！\n成功: ${successCount} 条\n失败: ${failCount} 条`);
+                    }
+                }, 500);
+            } catch (e) {
+                console.error('清空回收站失败:', e);
+                alert('清空回收站失败: ' + (e.message || '未知错误'));
+            }
+        }
+
+        // 取消回收站选择
+        function clearRecycleBinSelections() {
+            const checkboxes = document.querySelectorAll('.recycle-bin-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+            const selectAllCheckbox = document.getElementById('selectAllRecycleBin');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+            updateRecycleBinBulkActions();
+        }
+
         // ==================== 调试功能 ====================
         function showDebugInfo() {
             console.log('========== 调试信息 ==========');
@@ -2700,6 +3257,8 @@
             initSupabase();
             await loadFilterOptions();
             await loadData();
+            // 更新回收站计数
+            await updateRecycleBinCount();
             
             // 添加调试快捷键 (Ctrl + Shift + D)
             document.addEventListener('keydown', function(e) {

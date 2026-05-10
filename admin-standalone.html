@@ -180,6 +180,8 @@
     .action-btn-cancel:hover { background: #d32f2f; }
     .action-btn-delete { background: #ff5722; color: white; }
     .action-btn-delete:hover { background: #e64a19; }
+    .action-btn-view { background: #2196f3; color: white; }
+    .action-btn-view:hover { background: #1976d2; }
     .batch-actions {
       display: flex;
       gap: 10px;
@@ -275,6 +277,68 @@
       border: 1px solid #e0e0e0;
       border-radius: 6px;
       font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .pagination .page-size-selector:hover {
+      border-color: #667eea;
+    }
+    .pagination .page-size-selector:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+    /* fix: 新增 - 分页设置控件样式 */
+    .page-size-setting {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 1px solid #e0e0e0;
+    }
+    .page-size-setting label {
+      font-size: 14px;
+      color: #666;
+      white-space: nowrap;
+    }
+    .page-size-setting .page-size-input {
+      width: 60px;
+      padding: 6px 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    .page-size-setting .page-size-input:hover {
+      border-color: #667eea;
+    }
+    .page-size-setting .page-size-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+    .page-size-setting .page-size-input.error {
+      border-color: #f44336;
+      background: #ffebee;
+    }
+    .page-size-setting .page-size-hint {
+      font-size: 12px;
+      color: #999;
+    }
+    .page-size-setting .page-size-hint.error {
+      color: #f44336;
+    }
+    .pagination-status {
+      font-size: 14px;
+      color: #666;
+      margin-right: 15px;
+      padding-right: 15px;
+      border-right: 1px solid #e0e0e0;
+    }
+    .pagination-status strong {
+      color: #667eea;
     }
     /* fix: 新增 - 自定义日期范围选择器样式 */
     .date-range-container {
@@ -426,12 +490,123 @@
       .data-table { font-size: 12px; }
       .data-table th, .data-table td { padding: 8px 10px; }
     }
+    /* 候选人详情弹窗样式 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.show {
+      display: flex;
+    }
+    .modal {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .modal-header h2 {
+      font-size: 18px;
+      margin: 0;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: white;
+      opacity: 0.8;
+    }
+    .modal-close:hover {
+      opacity: 1;
+    }
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      max-height: calc(90vh - 70px);
+    }
+    .detail-section {
+      margin-bottom: 20px;
+    }
+    .detail-section h3 {
+      font-size: 16px;
+      color: #667eea;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e8e8e8;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .detail-item label {
+      font-size: 12px;
+      color: #999;
+    }
+    .detail-item span {
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+    .detail-item .empty-value {
+      color: #999;
+      font-style: italic;
+    }
+    .no-data-tip {
+      text-align: center;
+      padding: 30px;
+      color: #999;
+    }
+    .no-data-tip svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
   </style>
 </head>
 <body>
   <div id="loading">
     <div class="spinner"></div>
     <p style="margin-top:20px;color:#666;">正在加载管理系统...</p>
+  </div>
+
+  <!-- 候选人详情弹窗 -->
+  <div class="modal-overlay" id="candidateModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>👤 候选人详情</h2>
+        <button class="modal-close" onclick="closeCandidateModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="candidateModalBody">
+        <!-- 动态内容 -->
+      </div>
+    </div>
   </div>
 
   <div class="container">
@@ -570,6 +745,7 @@
 
     var db = null;
     var allBookings = [];
+    var allApplications = []; // fix: 新增 - 存储所有应聘信息用于关联查询
     var currentView = 'list';
 
     // fix: 新增 - 当前激活的统计卡片筛选条件，用于卡片与数据联动
@@ -577,7 +753,17 @@
 
     // fix: 新增 - 分页相关变量
     var currentPage = 1;
-    var pageSize = 20;
+    // fix: 从localStorage读取分页设置，默认20，限制10-20范围
+    var pageSize = (function() {
+      var saved = localStorage.getItem('adminPageSize');
+      if (saved) {
+        var size = parseInt(saved, 10);
+        if (!isNaN(size) && size >= 10 && size <= 20) {
+          return size;
+        }
+      }
+      return 20; // 默认值
+    })();
     var totalPages = 1;
 
     // fix: 新增 - 自定义日期范围相关变量
@@ -754,6 +940,18 @@
       container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
       try {
+        // fix: 新增 - 同时加载应聘信息，用于关联查询候选人详情
+        try {
+          var appResult = await db.from('applications').select('*');
+          if (!appResult.error && appResult.data) {
+            allApplications = appResult.data;
+            console.log('✅ 应聘信息加载成功:', allApplications.length, '条');
+          }
+        } catch (e) {
+          console.warn('⚠️ 应聘信息加载失败:', e.message);
+          allApplications = [];
+        }
+
         var query = db.from('bookings').select('*');
         var dateFilter = document.getElementById('filterDate').value;
         var today = new Date();
@@ -856,18 +1054,17 @@
       // 下一页按钮
       html += '<button onclick="goToPage(' + (currentPage + 1) + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>下一页</button>';
 
-      // 页码信息
+      // fix: 新增 - 分页状态显示（显示X-Y条，共Z条）
       var startItem = (currentPage - 1) * pageSize + 1;
       var endItem = Math.min(currentPage * pageSize, totalItems);
-      html += '<span class="page-info">第 ' + startItem + '-' + endItem + ' 条，共 ' + totalItems + ' 条</span>';
+      html += '<span class="pagination-status">显示 <strong>' + startItem + '-' + endItem + '</strong> 条，共 <strong>' + totalItems + '</strong> 条</span>';
 
-      // 每页条数选择器
-      html += '<select class="page-size-selector" onchange="changePageSize(this.value)">';
-      html += '<option value="10" ' + (pageSize === 10 ? 'selected' : '') + '>10条/页</option>';
-      html += '<option value="20" ' + (pageSize === 20 ? 'selected' : '') + '>20条/页</option>';
-      html += '<option value="50" ' + (pageSize === 50 ? 'selected' : '') + '>50条/页</option>';
-      html += '<option value="100" ' + (pageSize === 100 ? 'selected' : '') + '>100条/页</option>';
-      html += '</select>';
+      // fix: 新增 - 分页设置控件（支持10-20范围）
+      html += '<div class="page-size-setting">';
+      html += '<label for="pageSizeInput">每页显示:</label>';
+      html += '<input type="number" id="pageSizeInput" class="page-size-input" value="' + pageSize + '" min="10" max="20" onchange="handlePageSizeChange(this)" onkeyup="handlePageSizeInput(event, this)" title="输入10-20之间的数字">';
+      html += '<span class="page-size-hint" id="pageSizeHint">条 (10-20)</span>';
+      html += '</div>';
 
       html += '</div>';
       return html;
@@ -880,11 +1077,140 @@
       loadBookings();
     }
 
-    // fix: 新增 - 改变每页条数
+    // fix: 新增 - 处理分页设置输入（带验证）
+    function handlePageSizeChange(input) {
+      var value = input.value.trim();
+      var hint = document.getElementById('pageSizeHint');
+
+      // 验证是否为空
+      if (value === '') {
+        showPageSizeError(input, hint, '请输入数字');
+        input.value = pageSize; // 恢复默认值
+        return;
+      }
+
+      // 验证是否为数字
+      var size = parseInt(value, 10);
+      if (isNaN(size)) {
+        showPageSizeError(input, hint, '请输入有效数字');
+        input.value = pageSize; // 恢复默认值
+        return;
+      }
+
+      // 验证范围（10-20）
+      if (size < 10 || size > 20) {
+        showPageSizeError(input, hint, '范围: 10-20');
+        input.value = pageSize; // 恢复默认值
+        return;
+      }
+
+      // 验证通过，清除错误状态
+      clearPageSizeError(input, hint);
+
+      // fix: 保存到localStorage实现持久化
+      localStorage.setItem('adminPageSize', size);
+
+      // 应用新设置并重新加载数据
+      changePageSize(size);
+    }
+
+    // fix: 新增 - 处理分页设置键盘输入
+    function handlePageSizeInput(event, input) {
+      // 按回车键时触发变更
+      if (event.key === 'Enter') {
+        input.blur(); // 触发onchange
+        return;
+      }
+
+      // 实时验证输入字符
+      var value = input.value;
+      var hint = document.getElementById('pageSizeHint');
+
+      // 只允许数字
+      if (value && !/^\d*$/.test(value)) {
+        input.value = value.replace(/\D/g, '');
+      }
+
+      // 实时范围提示
+      var num = parseInt(input.value, 10);
+      if (!isNaN(num) && (num < 10 || num > 20)) {
+        hint.textContent = '范围: 10-20';
+        hint.classList.add('error');
+      } else {
+        hint.textContent = '条 (10-20)';
+        hint.classList.remove('error');
+      }
+    }
+
+    // fix: 新增 - 显示分页设置错误
+    function showPageSizeError(input, hint, message) {
+      input.classList.add('error');
+      hint.textContent = message;
+      hint.classList.add('error');
+
+      // 3秒后清除错误状态
+      setTimeout(function() {
+        clearPageSizeError(input, hint);
+      }, 3000);
+    }
+
+    // fix: 新增 - 清除分页设置错误
+    function clearPageSizeError(input, hint) {
+      input.classList.remove('error');
+      hint.textContent = '条 (10-20)';
+      hint.classList.remove('error');
+    }
+
+    // fix: 新增 - 改变每页条数（带数据重新加载）
     function changePageSize(size) {
-      pageSize = parseInt(size);
-      currentPage = 1;
+      // 验证范围
+      size = parseInt(size, 10);
+      if (isNaN(size) || size < 10 || size > 20) {
+        console.warn('分页设置超出范围:', size);
+        return;
+      }
+
+      // fix: 如果值没有变化，不重新加载
+      if (size === pageSize) {
+        return;
+      }
+
+      pageSize = size;
+      currentPage = 1; // 重置到第一页
+
+      // fix: 重新加载数据
       loadBookings();
+
+      // 显示提示
+      showNotification('每页显示已设置为 ' + size + ' 条');
+    }
+
+    // fix: 新增 - 显示通知提示
+    function showNotification(message) {
+      // 创建通知元素
+      var notification = document.createElement('div');
+      notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 10000; font-size: 14px; animation: slideIn 0.3s ease;';
+      notification.textContent = message;
+
+      // 添加动画样式
+      if (!document.getElementById('notificationStyle')) {
+        var style = document.createElement('style');
+        style.id = 'notificationStyle';
+        style.textContent = '@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }';
+        document.head.appendChild(style);
+      }
+
+      document.body.appendChild(notification);
+
+      // 3秒后自动移除
+      setTimeout(function() {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(function() {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }, 3000);
     }
 
     // fix: 新增 - 筛选条件变化时重置页码
@@ -1053,6 +1379,9 @@
         html += '<td>' + timeLabel + '</td>';
         html += '<td><span class="status status-' + b.status + '">' + statusLabel + '</span></td>';
         html += '<td>';
+
+        // fix: 新增 - 查看候选人详情按钮
+        html += '<button class="action-btn action-btn-view" onclick="viewCandidateDetail(' + b.id + ', \'' + b.phone + '\', \'' + (b.application_id || '') + '\')">查看详情</button>';
 
         if (b.status === 'pending') {
           html += '<button class="action-btn action-btn-confirm" onclick="updateStatus(' + b.id + ', \'confirmed\')">确认</button>';
@@ -1257,6 +1586,210 @@
         renderCalendarView(allBookings);
       }
     }
+
+    // fix: 新增 - 查看候选人详情功能
+    async function viewCandidateDetail(bookingId, phone, applicationId) {
+      var modal = document.getElementById('candidateModal');
+      var modalBody = document.getElementById('candidateModalBody');
+
+      // 显示加载状态
+      modalBody.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:15px;color:#666;">正在加载候选人信息...</p></div>';
+      modal.classList.add('show');
+
+      try {
+        var candidateInfo = null;
+
+        // 1. 首先尝试通过 application_id 查找
+        if (applicationId) {
+          candidateInfo = allApplications.find(function(app) {
+            return String(app.id) === String(applicationId);
+          });
+        }
+
+        // 2. 如果没找到，尝试通过手机号查找
+        if (!candidateInfo && phone) {
+          candidateInfo = allApplications.find(function(app) {
+            return app.phone === phone;
+          });
+        }
+
+        // 3. 渲染候选人信息
+        if (candidateInfo) {
+          renderCandidateInfo(candidateInfo);
+        } else {
+          // 未找到候选人信息
+          modalBody.innerHTML = '<div class="no-data-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px;margin-bottom:10px;opacity:0.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg><p>未找到该预约人的详细应聘信息</p><p style="font-size:12px;color:#999;margin-top:10px;">可能原因：该预约未关联应聘信息或数据尚未同步</p></div>';
+        }
+      } catch (e) {
+        console.error('加载候选人详情失败:', e);
+        modalBody.innerHTML = '<div class="no-data-tip"><p>加载失败: ' + e.message + '</p></div>';
+      }
+    }
+
+    // fix: 新增 - 渲染候选人信息到弹窗
+    function renderCandidateInfo(app) {
+      var modalBody = document.getElementById('candidateModalBody');
+      var dynamicFields = app.dynamic_fields || app.form_data || app.fields || {};
+
+      // 辅助函数：获取字段值（支持多种字段名格式）
+      function getFieldValue() {
+        var fieldNames = Array.prototype.slice.call(arguments);
+        for (var i = 0; i < fieldNames.length; i++) {
+          var name = fieldNames[i];
+          if (dynamicFields[name] !== undefined && dynamicFields[name] !== '') {
+            return dynamicFields[name];
+          }
+          if (app[name] !== undefined && app[name] !== '') {
+            return app[name];
+          }
+        }
+        return '';
+      }
+
+      // 字段名翻译
+      function translateFieldName(fieldName) {
+        var translations = {
+          'name': '姓名', 'Name': '姓名',
+          'gender': '性别', 'Gender': '性别',
+          'phone': '电话', 'Phone': '电话',
+          'age': '年龄', 'Age': '年龄',
+          'position': '应聘岗位', 'Position': '应聘岗位',
+          'education': '学历', 'Education': '学历',
+          'experience': '工作经验', 'Experience': '工作经验',
+          'marital_status': '婚姻状况', 'marital status': '婚姻状况', 'Marital Status': '婚姻状况',
+          'job_type': '工种', 'job type': '工种', 'Job Type': '工种', '工种': '工种', '应聘工种': '工种',
+          'address': '现居地址', 'Address': '现居地址',
+          'email': '电子邮箱', 'Email': '电子邮箱',
+          'expected_salary': '期望薪资', 'expected salary': '期望薪资', 'Expected Salary': '期望薪资',
+          'self_evaluation': '自我评价', 'self introduction': '自我介绍', 'Self Introduction': '自我介绍',
+          'referrer': '推荐人', 'Referrer': '推荐人',
+          'source_channel': '招聘渠道', 'source channel': '招聘渠道', 'Source Channel': '招聘渠道'
+        };
+        return translations[fieldName] || fieldName;
+      }
+
+      var html = '';
+
+      // 基本信息部分
+      html += '<div class="detail-section">';
+      html += '<h3>👤 基本信息</h3>';
+      html += '<div class="detail-grid">';
+
+      var basicFields = [
+        { label: '姓名', value: app.name || getFieldValue('name', 'Name') },
+        { label: '性别', value: getFieldValue('gender', 'Gender') },
+        { label: '电话', value: app.phone || getFieldValue('phone', 'Phone') },
+        { label: '年龄', value: getFieldValue('age', 'Age') ? getFieldValue('age', 'Age') + ' 岁' : '' },
+        { label: '应聘岗位', value: app.position || getFieldValue('position', 'Position') },
+        { label: '工种', value: getFieldValue('job_type', 'job type', 'Job Type', '工种', '应聘工种') },
+        { label: '学历', value: getFieldValue('education', 'Education') },
+        { label: '工作经验', value: getFieldValue('experience', 'Experience') },
+        { label: '婚姻状况', value: getFieldValue('marital_status', 'marital status', 'Marital Status', '婚姻状况') }
+      ];
+
+      for (var i = 0; i < basicFields.length; i++) {
+        var field = basicFields[i];
+        html += '<div class="detail-item">';
+        html += '<label>' + field.label + '</label>';
+        html += '<span' + (!field.value ? ' class="empty-value"' : '') + '>' + (field.value || '未填写') + '</span>';
+        html += '</div>';
+      }
+
+      html += '</div></div>';
+
+      // 工作经历部分
+      var workExp = dynamicFields.work_experience || dynamicFields.workExperience || dynamicFields['work experience'];
+      if (workExp && Array.isArray(workExp) && workExp.length > 0) {
+        html += '<div class="detail-section">';
+        html += '<h3>💼 工作经历</h3>';
+
+        for (var j = 0; j < workExp.length; j++) {
+          var exp = workExp[j];
+          html += '<div style="background:#f8f9ff;padding:15px;border-radius:8px;margin-bottom:10px;">';
+          html += '<h4 style="margin:0 0 10px 0;color:#667eea;font-size:14px;">工作经历 #' + (j + 1) + '</h4>';
+          html += '<div class="detail-grid">';
+          html += '<div class="detail-item"><label>公司名称</label><span>' + (exp.company || '-') + '</span></div>';
+          html += '<div class="detail-item"><label>职位</label><span>' + (exp.position || '-') + '</span></div>';
+          html += '<div class="detail-item"><label>工作时间</label><span>' + (exp.startDate || '-') + ' 至 ' + (exp.isCurrent ? '至今' : (exp.endDate || '-')) + '</span></div>';
+          html += '<div class="detail-item"><label>离职原因</label><span>' + (exp.leaveReason || '-') + '</span></div>';
+          html += '</div>';
+          if (exp.responsibilities) {
+            html += '<div style="margin-top:10px;"><label style="font-size:12px;color:#999;">主要工作内容</label><p style="margin:5px 0 0 0;color:#666;font-size:13px;">' + exp.responsibilities + '</p></div>';
+          }
+          html += '</div>';
+        }
+
+        html += '</div>';
+      }
+
+      // 其他信息（排除已显示的字段）
+      var excludedFields = ['name', 'Name', 'gender', 'Gender', 'phone', 'Phone', 'age', 'Age',
+        'position', 'Position', 'education', 'Education', 'experience', 'Experience',
+        'marital_status', 'marital status', 'Marital Status', 'job_type', 'job type', 'Job Type', '工种',
+        'work_experience', 'workExperience', 'work experience'];
+
+      var otherFields = [];
+      for (var key in dynamicFields) {
+        if (excludedFields.indexOf(key) === -1 && dynamicFields[key] && dynamicFields[key] !== '') {
+          otherFields.push({ key: key, value: dynamicFields[key] });
+        }
+      }
+
+      if (otherFields.length > 0) {
+        html += '<div class="detail-section">';
+        html += '<h3>📝 其他信息</h3>';
+        html += '<div class="detail-grid">';
+
+        for (var k = 0; k < otherFields.length; k++) {
+          var field2 = otherFields[k];
+          var displayValue = field2.value;
+          if (Array.isArray(displayValue)) {
+            displayValue = displayValue.join(', ');
+          } else if (typeof displayValue === 'object') {
+            displayValue = JSON.stringify(displayValue);
+          }
+
+          html += '<div class="detail-item">';
+          html += '<label>' + translateFieldName(field2.key) + '</label>';
+          html += '<span>' + displayValue + '</span>';
+          html += '</div>';
+        }
+
+        html += '</div></div>';
+      }
+
+      // 申请时间
+      if (app.created_at) {
+        html += '<div class="detail-section">';
+        html += '<h3>📅 申请记录</h3>';
+        html += '<div class="detail-grid">';
+        html += '<div class="detail-item"><label>申请时间</label><span>' + new Date(app.created_at).toLocaleString('zh-CN') + '</span></div>';
+        html += '<div class="detail-item"><label>应聘状态</label><span>' + (app.status === 'processed' ? '已面试' : (app.status === 'rejected' ? '已拒绝' : '待处理')) + '</span></div>';
+        html += '</div></div>';
+      }
+
+      modalBody.innerHTML = html;
+    }
+
+    // fix: 新增 - 关闭候选人详情弹窗
+    function closeCandidateModal() {
+      document.getElementById('candidateModal').classList.remove('show');
+    }
+
+    // fix: 新增 - 点击弹窗外部关闭
+    document.addEventListener('click', function(e) {
+      var modal = document.getElementById('candidateModal');
+      if (e.target === modal) {
+        closeCandidateModal();
+      }
+    });
+
+    // fix: 新增 - ESC键关闭弹窗
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeCandidateModal();
+      }
+    });
 
     async function updateStatus(bookingId, newStatus) {
       var statusText = newStatus === 'confirmed' ? '确认' : '取消';

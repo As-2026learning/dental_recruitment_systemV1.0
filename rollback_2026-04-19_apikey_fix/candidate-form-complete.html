@@ -467,12 +467,10 @@
         <div class="success-message" id="successMessage">请稍候，正在保存您的应聘信息</div>
     </div>
 
-    <!-- fix: 2026-04-19 集中管理API Key - 使用config.js替代硬编码 -->
-    <script src="js/config.js"></script>
     <script>
-        // Supabase 配置 - 从config.js读取
-        var supabaseUrl = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_URL : 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-        var supabaseKey = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_KEY : 'sb_publishable_jIeq2dPdvQbWo0yyHGhfyw_QL5C5R_Y';
+        // Supabase 配置
+        var supabaseUrl = 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
+        var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobHFud2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODYyMjAsImV4cCI6MjA5MDI2MjIyMH0.r6hDrTVZ1p_Qq6sHuLeBEo3SFqGEh0trwbRMXLWnrNQ';
         var supabase = null;
         var currentFields = [];
         var fieldOptions = {};

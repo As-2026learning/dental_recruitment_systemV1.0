@@ -654,13 +654,14 @@ class RecruitmentDataManager {
     }
 
     /**
-     * 加载所有数据
+     * 加载所有数据（排除已删除的）
      */
     async loadData() {
         try {
             const { data, error } = await this.client
                 .from('recruitment_process')
                 .select('*')
+                .eq('is_deleted', false)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -1316,13 +1317,20 @@ class RecruitmentDataManager {
     }
 
     /**
-     * 删除记录
+     * 软删除记录（移动到回收站）
+     * @param {string} id - 记录ID
+     * @param {string} deletedBy - 删除操作人
      */
-    async deleteRecord(id) {
+    async deleteRecord(id, deletedBy = 'system') {
         try {
             const { error } = await this.client
                 .from('recruitment_process')
-                .delete()
+                .update({
+                    is_deleted: true,
+                    deleted_at: new Date().toISOString(),
+                    deleted_by: deletedBy,
+                    updated_at: new Date().toISOString()
+                })
                 .eq('id', id);
 
             if (error) throw error;
@@ -1332,7 +1340,7 @@ class RecruitmentDataManager {
             this.filteredData = this.filteredData.filter(item => item.id !== id);
             this.totalCount = this.allData.length;
 
-            return { success: true };
+            return { success: true, message: '已移动到回收站' };
         } catch (error) {
             console.error('删除记录失败:', error);
             return { success: false, error: error.message };
@@ -1340,10 +1348,11 @@ class RecruitmentDataManager {
     }
 
     /**
-     * 批量删除记录
+     * 批量软删除记录（移动到回收站）
      * @param {Array} ids - 要删除的记录ID数组
+     * @param {string} deletedBy - 删除操作人
      */
-    async batchDeleteRecords(ids) {
+    async batchDeleteRecords(ids, deletedBy = 'system') {
         try {
             if (!ids || ids.length === 0) {
                 return { success: true, deletedCount: 0 };
@@ -1351,10 +1360,15 @@ class RecruitmentDataManager {
 
             console.log(`准备批量删除 ${ids.length} 条记录:`, ids);
 
-            // 使用Supabase的in操作符批量删除
+            // 批量更新为软删除状态
             const { data: deletedRecords, error } = await this.client
                 .from('recruitment_process')
-                .delete()
+                .update({
+                    is_deleted: true,
+                    deleted_at: new Date().toISOString(),
+                    deleted_by: deletedBy,
+                    updated_at: new Date().toISOString()
+                })
                 .in('id', ids)
                 .select();
 
@@ -1371,10 +1385,182 @@ class RecruitmentDataManager {
             return { 
                 success: true, 
                 deletedCount: deletedCount,
-                deletedIds: deletedRecords ? deletedRecords.map(r => r.id) : []
+                deletedIds: deletedRecords ? deletedRecords.map(r => r.id) : [],
+                message: `已移动 ${deletedCount} 条记录到回收站`
             };
         } catch (error) {
             console.error('批量删除记录失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 恢复已删除的记录
+     * @param {string} id - 记录ID
+     */
+    async restoreRecord(id) {
+        try {
+            const { error } = await this.client
+                .from('recruitment_process')
+                .update({
+                    is_deleted: false,
+                    deleted_at: null,
+                    deleted_by: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            return { success: true, message: '恢复成功' };
+        } catch (error) {
+            console.error('恢复记录失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 批量恢复已删除的记录
+     * @param {Array} ids - 要恢复的记录ID数组
+     */
+    async batchRestoreRecords(ids) {
+        try {
+            if (!ids || ids.length === 0) {
+                return { success: true, restoredCount: 0 };
+            }
+
+            console.log(`准备批量恢复 ${ids.length} 条记录:`, ids);
+
+            const { data: restoredRecords, error } = await this.client
+                .from('recruitment_process')
+                .update({
+                    is_deleted: false,
+                    deleted_at: null,
+                    deleted_by: null,
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', ids)
+                .select();
+
+            if (error) throw error;
+
+            const restoredCount = restoredRecords ? restoredRecords.length : 0;
+            console.log(`成功恢复 ${restoredCount} 条记录`);
+
+            return { 
+                success: true, 
+                restoredCount: restoredCount,
+                restoredIds: restoredRecords ? restoredRecords.map(r => r.id) : [],
+                message: `成功恢复 ${restoredCount} 条记录`
+            };
+        } catch (error) {
+            console.error('批量恢复记录失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 彻底删除记录（从回收站永久删除）
+     * @param {string} id - 记录ID
+     */
+    async permanentDeleteRecord(id) {
+        try {
+            const { error } = await this.client
+                .from('recruitment_process')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            return { success: true, message: '已永久删除' };
+        } catch (error) {
+            console.error('永久删除记录失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 批量彻底删除记录
+     * @param {Array} ids - 要永久删除的记录ID数组
+     */
+    async batchPermanentDeleteRecords(ids) {
+        try {
+            if (!ids || ids.length === 0) {
+                return { success: true, deletedCount: 0 };
+            }
+
+            console.log(`准备永久删除 ${ids.length} 条记录:`, ids);
+
+            const { data: deletedRecords, error } = await this.client
+                .from('recruitment_process')
+                .delete()
+                .in('id', ids)
+                .select();
+
+            if (error) throw error;
+
+            const deletedCount = deletedRecords ? deletedRecords.length : 0;
+            console.log(`成功永久删除 ${deletedCount} 条记录`);
+
+            return { 
+                success: true, 
+                deletedCount: deletedCount,
+                deletedIds: deletedRecords ? deletedRecords.map(r => r.id) : [],
+                message: `已永久删除 ${deletedCount} 条记录`
+            };
+        } catch (error) {
+            console.error('批量永久删除记录失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 加载回收站数据（已删除的记录）
+     */
+    async loadDeletedData() {
+        try {
+            const { data, error } = await this.client
+                .from('recruitment_process')
+                .select('*')
+                .eq('is_deleted', true)
+                .order('deleted_at', { ascending: false });
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                data: data || [],
+                count: data ? data.length : 0
+            };
+        } catch (error) {
+            console.error('加载回收站数据失败:', error);
+            return { success: false, error: error.message, data: [], count: 0 };
+        }
+    }
+
+    /**
+     * 清空回收站（永久删除所有已删除记录）
+     */
+    async emptyRecycleBin() {
+        try {
+            const { data: deletedRecords, error } = await this.client
+                .from('recruitment_process')
+                .delete()
+                .eq('is_deleted', true)
+                .select();
+
+            if (error) throw error;
+
+            const deletedCount = deletedRecords ? deletedRecords.length : 0;
+            console.log(`成功清空回收站，删除 ${deletedCount} 条记录`);
+
+            return { 
+                success: true, 
+                deletedCount: deletedCount,
+                message: `已清空回收站，永久删除 ${deletedCount} 条记录`
+            };
+        } catch (error) {
+            console.error('清空回收站失败:', error);
             return { success: false, error: error.message };
         }
     }

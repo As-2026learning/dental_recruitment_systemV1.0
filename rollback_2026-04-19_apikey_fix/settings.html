@@ -774,15 +774,15 @@
     async function loadJobTypes() {
       var tbody = document.getElementById('jobTypesList');
       try {
-        // fix: 2026-04-19 使用config.js中的配置，避免硬编码API Key
-        var supabaseUrl = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_URL : 'https://dxrghlqnwfwpuxjvyisv.supabase.co';
-        var supabaseKey = (typeof CONFIG !== 'undefined') ? CONFIG.SUPABASE_KEY : 'sb_publishable_jIeq2dPdvQbWo0yyHGhfyw_QL5C5R_Y';
+        // 使用 fetch API 直接查询，绕过缓存
+        var SUPABASE_URL = 'https://dxrghlgmwfwpuxjvyisv.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4cmdobGdtd2Z3cHV4anZ5aXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MzUwMzAsImV4cCI6MjA1NzUxMTAzMH0.VdL0r7a8j__r5l5-0A5Gj6_9s6z7r7x8y9z0a1b2c3d';
         
-        var response = await fetch(supabaseUrl + '/rest/v1/job_types?select=*&order=sort_order', {
+        var response = await fetch(SUPABASE_URL + '/rest/v1/job_types?select=*&order=sort_order', {
           method: 'GET',
           headers: {
-            'apikey': supabaseKey,
-            'Authorization': 'Bearer ' + supabaseKey,
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
             'Content-Type': 'application/json'
           }
         });

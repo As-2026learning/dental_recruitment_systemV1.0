@@ -939,6 +939,272 @@ function setPageSize(size) {
     updatePagination();
 }
 
+// ============================================
+// 回收站功能
+// ============================================
+
+// 全局变量
+let recycleBinData = [];
+let selectedRecycleBinIds = new Set();
+
+/**
+ * 显示回收站模态框
+ */
+function showRecycleBin() {
+    document.getElementById('recycleBinModal').classList.add('active');
+    loadRecycleBinData();
+}
+
+/**
+ * 关闭回收站模态框
+ */
+function closeRecycleBin() {
+    document.getElementById('recycleBinModal').classList.remove('active');
+}
+
+/**
+ * 加载回收站数据
+ */
+async function loadRecycleBinData() {
+    const container = document.getElementById('recycleBinContainer');
+    container.innerHTML = '<div class="loading-message">正在加载回收站数据...</div>';
+
+    try {
+        const result = await dataManager.loadDeletedData();
+        
+        if (result.success) {
+            recycleBinData = result.data;
+            document.getElementById('recycleBinCount').textContent = recycleBinData.length;
+            renderRecycleBin(recycleBinData);
+        } else {
+            container.innerHTML = '<div class="empty-state"><p>加载失败: ' + result.error + '</p></div>';
+        }
+    } catch (error) {
+        console.error('加载回收站数据失败:', error);
+        container.innerHTML = '<div class="empty-state"><p>加载失败，请重试</p></div>';
+    }
+}
+
+/**
+ * 渲染回收站列表
+ */
+function renderRecycleBin(data) {
+    const container = document.getElementById('recycleBinContainer');
+
+    if (data.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>回收站为空</p></div>';
+        document.getElementById('recycleBinBulkActions').style.display = 'none';
+        return;
+    }
+
+    let html = '<table class="recycle-bin-table"><thead><tr>';
+    html += '<th style="width: 40px;"><input type="checkbox" id="selectAllRecycleBin" onchange="toggleAllRecycleBin(this)"></th>';
+    html += '<th>姓名</th>';
+    html += '<th>电话</th>';
+    html += '<th>岗位</th>';
+    html += '<th>当前环节</th>';
+    html += '<th>删除时间</th>';
+    html += '<th>删除人</th>';
+    html += '<th style="width: 200px;">操作</th>';
+    html += '</tr></thead><tbody>';
+
+    data.forEach((item, index) => {
+        const deletedAt = item.deleted_at ? new Date(item.deleted_at).toLocaleString('zh-CN') : '-';
+        const deletedBy = item.deleted_by || '系统';
+        const stageMap = {
+            'application': '投递简历',
+            'first_interview': '初试',
+            'second_interview': '复试',
+            'hired': '录用',
+            'onboarded': '已报到'
+        };
+        const stageLabel = stageMap[item.current_stage] || item.current_stage || '-';
+
+        html += `<tr class="deleted-row">`;
+        html += `<td><input type="checkbox" class="recyclebin-checkbox" value="${item.id}" onchange="updateRecycleBinSelections()"></td>`;
+        html += `<td>${item.name || '-'}<span class="deleted-badge">已删除</span></td>`;
+        html += `<td>${item.phone || '-'}</td>`;
+        html += `<td>${item.position || '-'}</td>`;
+        html += `<td>${stageLabel}</td>`;
+        html += `<td class="delete-info">${deletedAt}</td>`;
+        html += `<td class="delete-info">${deletedBy}</td>`;
+        html += `<td>`;
+        html += `<button class="btn-restore" onclick="restoreFromRecycleBin('${item.id}')" style="margin-right: 8px; padding: 4px 12px; font-size: 12px;">♻️ 恢复</button>`;
+        html += `<button class="btn-permanent-delete" onclick="permanentDeleteFromRecycleBin('${item.id}', '${item.name || ''}')" style="padding: 4px 12px; font-size: 12px;">⚠️ 彻底删除</button>`;
+        html += `</td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+/**
+ * 回收站：全选/取消全选
+ */
+function toggleAllRecycleBin(checkbox) {
+    const checkboxes = document.querySelectorAll('.recyclebin-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateRecycleBinSelections();
+}
+
+/**
+ * 回收站：更新选中状态
+ */
+function updateRecycleBinSelections() {
+    const checkboxes = document.querySelectorAll('.recyclebin-checkbox:checked');
+    selectedRecycleBinIds.clear();
+    checkboxes.forEach(cb => selectedRecycleBinIds.add(cb.value));
+    
+    const count = selectedRecycleBinIds.size;
+    document.getElementById('recycleBinSelectedCount').textContent = `已选择 ${count} 条记录`;
+    document.getElementById('recycleBinBulkActions').style.display = count > 0 ? 'block' : 'none';
+    
+    // 更新全选状态
+    const selectAll = document.getElementById('selectAllRecycleBin');
+    const allCheckboxes = document.querySelectorAll('.recyclebin-checkbox');
+    if (selectAll && allCheckboxes.length > 0) {
+        selectAll.checked = count === allCheckboxes.length;
+    }
+}
+
+/**
+ * 回收站：清空选择
+ */
+function clearRecycleBinSelections() {
+    selectedRecycleBinIds.clear();
+    const checkboxes = document.querySelectorAll('.recyclebin-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    document.getElementById('recycleBinBulkActions').style.display = 'none';
+}
+
+/**
+ * 从回收站恢复单条记录
+ */
+async function restoreFromRecycleBin(id) {
+    if (!confirm('确定要恢复这条记录吗？')) return;
+
+    try {
+        const result = await dataManager.restoreRecord(id);
+        
+        if (result.success) {
+            alert('恢复成功！');
+            loadRecycleBinData();
+            await loadData(); // 刷新主列表
+        } else {
+            alert('恢复失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('恢复记录失败:', error);
+        alert('恢复失败: ' + error.message);
+    }
+}
+
+/**
+ * 批量恢复
+ */
+async function batchRestoreFromRecycleBin() {
+    const count = selectedRecycleBinIds.size;
+    if (count === 0) {
+        alert('请先选择要恢复的记录');
+        return;
+    }
+
+    if (!confirm(`确定要批量恢复选中的 ${count} 条记录吗？`)) return;
+
+    try {
+        const ids = Array.from(selectedRecycleBinIds);
+        const result = await dataManager.batchRestoreRecords(ids);
+        
+        if (result.success) {
+            alert(result.message);
+            clearRecycleBinSelections();
+            loadRecycleBinData();
+            await loadData(); // 刷新主列表
+        } else {
+            alert('批量恢复失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('批量恢复失败:', error);
+        alert('批量恢复失败: ' + error.message);
+    }
+}
+
+/**
+ * 彻底删除单条记录
+ */
+async function permanentDeleteFromRecycleBin(id, name) {
+    if (!confirm(`⚠️ 警告：彻底删除后数据将无法恢复！\n\n确定要彻底删除 "${name || '该记录'}" 吗？`)) return;
+
+    try {
+        const result = await dataManager.permanentDeleteRecord(id);
+        
+        if (result.success) {
+            alert('已彻底删除！');
+            loadRecycleBinData();
+        } else {
+            alert('删除失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('永久删除失败:', error);
+        alert('删除失败: ' + error.message);
+    }
+}
+
+/**
+ * 批量彻底删除
+ */
+async function batchPermanentDeleteFromRecycleBin() {
+    const count = selectedRecycleBinIds.size;
+    if (count === 0) {
+        alert('请先选择要删除的记录');
+        return;
+    }
+
+    if (!confirm(`⚠️ 警告：此操作将永久删除选中的 ${count} 条记录，且无法恢复！\n\n确定要继续吗？`)) return;
+
+    try {
+        const ids = Array.from(selectedRecycleBinIds);
+        const result = await dataManager.batchPermanentDeleteRecords(ids);
+        
+        if (result.success) {
+            alert(result.message);
+            clearRecycleBinSelections();
+            loadRecycleBinData();
+        } else {
+            alert('批量删除失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('批量永久删除失败:', error);
+        alert('批量删除失败: ' + error.message);
+    }
+}
+
+/**
+ * 清空回收站
+ */
+async function emptyRecycleBin() {
+    if (recycleBinData.length === 0) {
+        alert('回收站已经是空的');
+        return;
+    }
+
+    if (!confirm(`⚠️ 警告：此操作将永久删除回收站中的所有 ${recycleBinData.length} 条记录，且无法恢复！\n\n确定要继续吗？`)) return;
+
+    try {
+        const result = await dataManager.emptyRecycleBin();
+        
+        if (result.success) {
+            alert(result.message);
+            loadRecycleBinData();
+        } else {
+            alert('清空回收站失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('清空回收站失败:', error);
+        alert('清空回收站失败: ' + error.message);
+    }
+}
+
 // 暴露全局函数供HTML调用
 window.goToPage = goToPage;
 window.showDetail = showDetail;
@@ -948,3 +1214,14 @@ window.handlePrint = handlePrint;
 window.resetFilters = resetFilters;
 window.applyFilters = applyFilters;
 window.refreshData = refreshData;
+window.showRecycleBin = showRecycleBin;
+window.closeRecycleBin = closeRecycleBin;
+window.loadRecycleBinData = loadRecycleBinData;
+window.toggleAllRecycleBin = toggleAllRecycleBin;
+window.updateRecycleBinSelections = updateRecycleBinSelections;
+window.clearRecycleBinSelections = clearRecycleBinSelections;
+window.restoreFromRecycleBin = restoreFromRecycleBin;
+window.batchRestoreFromRecycleBin = batchRestoreFromRecycleBin;
+window.permanentDeleteFromRecycleBin = permanentDeleteFromRecycleBin;
+window.batchPermanentDeleteFromRecycleBin = batchPermanentDeleteFromRecycleBin;
+window.emptyRecycleBin = emptyRecycleBin;
